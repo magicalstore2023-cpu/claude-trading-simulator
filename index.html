@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Trading Simulator</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0b0f17;--card:#121826;--line:#1f2937;--txt:#e5e7eb;--mut:#9ca3af;--up:#22c55e;--down:#ef4444;--acc:#facc15}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--txt);font-family:Inter,system-ui,sans-serif;min-height:100vh}
+.banner{background:#facc1522;color:var(--acc);text-align:center;font-size:13px;padding:6px;font-weight:600}
+header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--line);flex-wrap:wrap;gap:10px}
+.logo{font-weight:800;font-size:18px}.logo span{color:var(--acc)}
+nav a{color:var(--mut);text-decoration:none;margin-left:16px;font-weight:600;padding:6px 10px;border-radius:8px}
+nav a.on{color:var(--txt);background:var(--card)}
+.live{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--up)}
+.live i{width:8px;height:8px;border-radius:50%;background:var(--up);animation:p 1.5s infinite}
+@keyframes p{50%{opacity:.3}}
+main{max-width:1200px;margin:0 auto;padding:20px 16px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+.card h4{color:var(--mut);font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
+.big{font-size:26px;font-weight:800}
+.up{color:var(--up)}.down{color:var(--down)}
+h2{font-size:17px;margin:6px 0 12px}
+canvas{width:100%;height:260px;display:block}
+.tbl{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{color:var(--mut);font-weight:600;text-align:left;padding:10px 8px;border-bottom:1px solid var(--line);font-size:12px;text-transform:uppercase}
+td{padding:10px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+.tag{padding:3px 8px;border-radius:6px;font-size:12px;font-weight:700}
+.buy{background:#22c55e22;color:var(--up)}.sell{background:#ef444422;color:var(--down)}
+.empty{color:var(--mut);text-align:center;padding:24px}
+button{background:transparent;color:var(--mut);border:1px solid var(--line);border-radius:8px;padding:8px 14px;cursor:pointer;font-family:inherit}
+button:hover{color:var(--txt)}
+.row{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+.mk{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:18px}
+.mk .card{padding:12px}
+.small{font-size:12px;color:var(--mut)}
+.hidden{display:none}
+.tv{border-radius:14px;overflow:hidden;margin-bottom:18px;border:1px solid var(--line)}
+</style>
+</head>
+<body>
+<div class="banner">⚠️ Simulation — aucun argent réel</div>
+<header>
+  <div class="logo">Claude <span>Trading</span> Simulator</div>
+  <div><span class="live"><i></i> En direct</span>
+  <nav style="display:inline"><a href="#dashboard" id="l1">Dashboard</a><a href="#trading" id="l2">Trading</a></nav></div>
+</header>
+
+<main>
+<section id="pDash">
+  <div class="grid">
+    <div class="card"><h4>Valeur du portefeuille</h4><div class="big" id="kEq">—</div><div class="small">Départ : 10 000,00 €</div></div>
+    <div class="card"><h4>Gain / perte total</h4><div class="big" id="kPl">—</div><div class="small" id="kPlPct"></div></div>
+    <div class="card"><h4>Cash disponible</h4><div class="big" id="kCash">—</div><div class="small" id="kInv"></div></div>
+    <div class="card"><h4>Trades</h4><div class="big" id="kTr">0</div><div class="small" id="kWin"></div></div>
+  </div>
+  <div class="card" style="margin-bottom:18px"><h2>Évolution du portefeuille</h2><canvas id="cv"></canvas></div>
+  <div class="grid">
+    <div class="card"><h4>Total investi (entrées)</h4><div class="big" id="kIn">0 €</div></div>
+    <div class="card"><h4>Total récupéré (sorties)</h4><div class="big" id="kOut">0 €</div></div>
+    <div class="card"><h4>Meilleur trade</h4><div class="big up" id="kBest">—</div></div>
+    <div class="card"><h4>Pire trade</h4><div class="big down" id="kWorst">—</div></div>
+  </div>
+  <div class="row"><span class="small" id="kStart"></span><button onclick="resetAll()">↺ Recommencer à 10 000 €</button></div>
+</section>
+
+<section id="pTrade" class="hidden">
+  <div class="tv"><div class="tradingview-widget-container"><div class="tradingview-widget-container__widget"></div>
+  <script src="https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js" async>
+  {"symbols":[{"proName":"NASDAQ:AAPL","title":"Apple"},{"proName":"NASDAQ:NVDA","title":"Nvidia"},{"proName":"NASDAQ:TSLA","title":"Tesla"},{"proName":"NASDAQ:MSFT","title":"Microsoft"},{"proName":"NASDAQ:AMZN","title":"Amazon"},{"proName":"FOREXCOM:SPXUSD","title":"S&P 500"},{"proName":"BINANCE:BTCEUR","title":"Bitcoin"},{"proName":"BINANCE:ETHEUR","title":"Ethereum"}],"showSymbolLogo":true,"colorTheme":"dark","isTransparent":true,"displayMode":"adaptive","locale":"fr"}
+  </script></div></div>
+
+  <h2>Marchés suivis par le bot</h2>
+  <div class="mk" id="markets"></div>
+
+  <div class="card" style="margin-bottom:18px"><h2>Positions ouvertes</h2><div class="tbl"><table>
+    <thead><tr><th>Actif</th><th>Quantité</th><th>Prix d'entrée</th><th>Prix actuel</th><th>Montant</th><th>Gain/Perte</th><th>Ouverte</th></tr></thead>
+    <tbody id="pos"></tbody></table></div></div>
+
+  <div class="card"><h2>Historique complet</h2><div class="tbl"><table>
+    <thead><tr><th>Date</th><th>Actif</th><th>Type</th><th>Prix</th><th>Quantité</th><th>Montant</th><th>Gain/Perte</th><th>Raison</th></tr></thead>
+    <tbody id="hist"></tbody></table></div></div>
+</section>
+</main>
+
+<script>
+const START=10000, FEE=0.001, ALLOC=0.15;
+const SYMS=["BTCEUR","ETHEUR","SOLEUR","BNBEUR","XRPEUR","ADAEUR","DOGEEUR","LINKEUR","AVAXEUR","DOTEUR"];
+const HOSTS=["https://data-api.binance.vision","https://api.binance.com"];
+const NAME=s=>s.replace("EUR","");
+let S=load()||fresh(), P={}, CH={};
+function fresh(){return {cash:START,pos:{},trades:[],eq:[[Date.now(),START]],start:Date.now()}}
+function load(){try{return JSON.parse(localStorage.getItem("cts"))}catch(e){return null}}
+function save(){try{localStorage.setItem("cts",JSON.stringify(S))}catch(e){}}
+const eur=v=>v.toLocaleString("fr-FR",{style:"currency",currency:"EUR"});
+const num=v=>v<1?v.toPrecision(4):v.toLocaleString("fr-FR",{maximumFractionDigits:2});
+const sma=(a,n)=>a.slice(-n).reduce((x,y)=>x+y,0)/n;
+const equity=()=>S.cash+Object.entries(S.pos).reduce((t,[s,p])=>t+p.qty*(P[s]||p.entry),0);
+const dt=t=>new Date(t).toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit"});
+function resetAll(){if(confirm("Recommencer la simulation à 10 000 € ?")){S=fresh();save();render()}}
+
+async function getK(s){
+  for(const h of HOSTS){try{const r=await fetch(`${h}/api/v3/klines?symbol=${s}&interval=1m&limit=40`);if(r.ok)return await r.json()}catch(e){}}
+  return null}
+
+// Stratégie de day trading : croisement de moyennes mobiles MM5/MM20 + RSI, stop-loss et take-profit
+function rsi(c,n=14){let g=0,l=0;for(let i=c.length-n;i<c.length;i++){const d=c[i]-c[i-1];d>0?g+=d:l-=d}return l===0?100:100-100/(1+g/l)}
+
+async function tick(){
+  for(const s of SYMS){
+    const k=await getK(s); if(!k||!k.length)continue;
+    const c=k.map(x=>+x[4]), price=c.at(-1); P[s]=price;
+    CH[s]=(price-+k[0][1])/+k[0][1];
+    const f=sma(c,5),sl=sma(c,20),pf=sma(c.slice(0,-1),5),ps=sma(c.slice(0,-1),20),r=rsi(c),p=S.pos[s];
+    if(p){
+      const ch=(price-p.entry)/p.entry; p.max=Math.max(p.max||p.entry,price);
+      let why=null;
+      if(ch<=-0.012)why="Stop-loss (-1,2 %)";
+      else if(ch>=0.02)why="Take-profit (+2 %)";
+      else if(ch>0.006&&price<p.max*(1-0.005))why="Stop suiveur, sécurise le gain";
+      else if(f<sl&&pf>=ps)why="Tendance retournée (MM5 < MM20)";
+      if(why){const val=p.qty*price*(1-FEE),pnl=val-p.cost;S.cash+=val;
+        S.trades.unshift({t:Date.now(),s,side:"VENTE",price,qty:p.qty,amt:val,pnl,why});delete S.pos[s]}
+    }else if(f>sl&&pf<=ps&&r<70){
+      const amt=Math.min(S.cash,equity()*ALLOC);
+      if(amt>50){const qty=amt*(1-FEE)/price;S.cash-=amt;
+        S.pos[s]={qty,entry:price,cost:amt,t:Date.now(),max:price};
+        S.trades.unshift({t:Date.now(),s,side:"ACHAT",price,qty,amt,pnl:null,why:`Croisement haussier MM5/MM20, RSI ${r.toFixed(0)}`})}
+    }
+  }
+  S.eq.push([Date.now(),equity()]); if(S.eq.length>3000)S.eq=S.eq.filter((_,i)=>i%2===0);
+  if(S.trades.length>1000)S.trades.length=1000;
+  save(); render();
+}
+
+function chart(){
+  const cv=document.getElementById("cv"); if(!cv||cv.offsetParent===null)return;
+  const W=cv.clientWidth,H=260,dpr=window.devicePixelRatio||1;cv.width=W*dpr;cv.height=H*dpr;
+  const x=cv.getContext("2d");x.scale(dpr,dpr);x.clearRect(0,0,W,H);
+  const v=S.eq.map(e=>e[1]); if(v.length<2){x.fillStyle="#9ca3af";x.font="14px Inter";x.fillText("Le graphique se remplit en direct…",12,30);return}
+  const mn=Math.min(...v,START)*0.9995,mx=Math.max(...v,START)*1.0005,Y=a=>H-12-(a-mn)/(mx-mn)*(H-24);
+  x.strokeStyle="#374151";x.setLineDash([4,4]);x.beginPath();x.moveTo(0,Y(START));x.lineTo(W,Y(START));x.stroke();x.setLineDash([]);
+  const col=v.at(-1)>=START?"#22c55e":"#ef4444";
+  const g=x.createLinearGradient(0,0,0,H);g.addColorStop(0,col+"55");g.addColorStop(1,col+"00");
+  x.beginPath();v.forEach((a,i)=>{const X=i/(v.length-1)*W;i?x.lineTo(X,Y(a)):x.moveTo(X,Y(a))});
+  x.lineTo(W,H);x.lineTo(0,H);x.fillStyle=g;x.fill();
+  x.beginPath();v.forEach((a,i)=>{const X=i/(v.length-1)*W;i?x.lineTo(X,Y(a)):x.moveTo(X,Y(a))});
+  x.strokeStyle=col;x.lineWidth=2;x.stroke();
+}
+
+function cls(v){return v>=0?"up":"down"}
+function sign(v){return (v>=0?"+":"")+eur(v)}
+
+function render(){
+  const pg=location.hash==="#trading"?"t":"d";
+  pDash.classList.toggle("hidden",pg!=="d");pTrade.classList.toggle("hidden",pg!=="t");
+  l1.className=pg==="d"?"on":"";l2.className=pg==="t"?"on":"";
+  const e=equity(),pl=e-START,sells=S.trades.filter(t=>t.side==="VENTE"),buys=S.trades.filter(t=>t.side==="ACHAT");
+  const wins=sells.filter(t=>t.pnl>0).length,inv=Object.values(S.pos).reduce((t,p)=>t+p.cost,0);
+  kEq.textContent=eur(e);kPl.textContent=sign(pl);kPl.className="big "+cls(pl);
+  kPlPct.textContent=(pl>=0?"+":"")+(pl/START*100).toFixed(2)+" %";
+  kCash.textContent=eur(S.cash);kInv.textContent=eur(inv)+" en positions";
+  kTr.textContent=S.trades.length;kWin.textContent=sells.length?`${Math.round(wins/sells.length*100)} % de trades gagnants`:"Aucun trade clôturé";
+  kIn.textContent=eur(buys.reduce((t,b)=>t+b.amt,0));kOut.textContent=eur(sells.reduce((t,b)=>t+b.amt,0));
+  const pn=sells.map(t=>t.pnl);kBest.textContent=pn.length?sign(Math.max(...pn)):"—";kWorst.textContent=pn.length?sign(Math.min(...pn)):"—";
+  kStart.textContent="Simulation lancée le "+new Date(S.start).toLocaleString("fr-FR");
+  markets.innerHTML=SYMS.filter(s=>P[s]).map(s=>`<div class="card"><b>${NAME(s)}</b> ${S.pos[s]?'<span class="tag buy">EN POSITION</span>':""}<div style="font-size:18px;font-weight:700;margin-top:4px">${num(P[s])} €</div><div class="small ${cls(CH[s]||0)}">${((CH[s]||0)*100).toFixed(2)} % (40 min)</div></div>`).join("")||'<div class="small">Chargement des prix…</div>';
+  const ps=Object.entries(S.pos);
+  pos.innerHTML=ps.length?ps.map(([s,p])=>{const cur=P[s]||p.entry,v=p.qty*cur-p.cost;return `<tr><td><b>${NAME(s)}</b></td><td>${num(p.qty)}</td><td>${num(p.entry)} €</td><td>${num(cur)} €</td><td>${eur(p.cost)}</td><td class="${cls(v)}">${sign(v)} (${(v/p.cost*100).toFixed(2)} %)</td><td>${dt(p.t)}</td></tr>`}).join(""):'<tr><td colspan="7" class="empty">Aucune position ouverte, le bot attend un signal.</td></tr>';
+  hist.innerHTML=S.trades.length?S.trades.map(t=>`<tr><td>${dt(t.t)}</td><td><b>${NAME(t.s)}</b></td><td><span class="tag ${t.side==="ACHAT"?"buy":"sell"}">${t.side==="ACHAT"?"ENTRÉE":"SORTIE"}</span></td><td>${num(t.price)} €</td><td>${num(t.qty)}</td><td>${eur(t.amt)}</td><td class="${t.pnl==null?"":cls(t.pnl)}">${t.pnl==null?"—":sign(t.pnl)}</td><td class="small">${t.why}</td></tr>`).join(""):'<tr><td colspan="8" class="empty">Pas encore de trade.</td></tr>';
+  chart();
+}
+window.addEventListener("hashchange",render);window.addEventListener("resize",chart);
+render();tick();setInterval(tick,20000);
+</script>
+</body>
+</html>
