@@ -1,0 +1,46 @@
+name: Bot de trading (simulation)
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: trading-bot
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Récupérer l'état du portefeuille
+        run: |
+          git fetch --depth 1 origin data 2>/dev/null && git show origin/data:state.json > state.json || echo "Premier lancement : portefeuille neuf à 10 000 €"
+
+      - name: Lancer le bot
+        env:
+          TWELVEDATA_KEY: ${{ secrets.TWELVEDATA_KEY }}
+          STATE_FILE: state.json
+        run: node bot/bot.mjs
+
+      - name: Enregistrer l'état
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir out && cp state.json out/ && cd out
+          git init -q -b data
+          git config user.name "trading-bot"
+          git config user.email "trading-bot@users.noreply.github.com"
+          git add state.json
+          git commit -q -m "Mise à jour du portefeuille"
+          git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" data
