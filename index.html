@@ -16,13 +16,14 @@ nav a{color:var(--mut);text-decoration:none;margin-left:16px;font-weight:600;pad
 nav a.on{color:var(--txt);background:var(--card)}
 .live{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--up)}
 .live i{width:8px;height:8px;border-radius:50%;background:var(--up);animation:p 1.5s infinite}
+.live.off{color:var(--acc)}.live.off i{background:var(--acc)}
 @keyframes p{50%{opacity:.3}}
 main{max-width:1200px;margin:0 auto;padding:20px 16px}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:18px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
 .card h4{color:var(--mut);font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
 .big{font-size:26px;font-weight:800}
-.up{color:var(--up)}.down{color:var(--down)}
+.up{color:var(--up)}.down{color:var(--down)}.warn{color:var(--acc)}
 h2{font-size:17px;margin:6px 0 12px}
 canvas{width:100%;height:260px;display:block}
 .tbl{overflow-x:auto}
@@ -35,18 +36,22 @@ td{padding:10px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
 button{background:transparent;color:var(--mut);border:1px solid var(--line);border-radius:8px;padding:8px 14px;cursor:pointer;font-family:inherit}
 button:hover{color:var(--txt)}
 .row{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
-.mk{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:18px}
+.mk{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:18px}
 .mk .card{padding:12px}
 .small{font-size:12px;color:var(--mut)}
 .hidden{display:none}
 .tv{border-radius:14px;overflow:hidden;margin-bottom:18px;border:1px solid var(--line)}
+.rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-bottom:18px}
+.rules ul{list-style:none}
+.rules li{font-size:13px;color:var(--mut);padding:5px 0;border-bottom:1px solid var(--line)}
+.rules li b{color:var(--txt)}
 </style>
 </head>
 <body>
 <div class="banner">⚠️ Simulation — aucun argent réel</div>
 <header>
   <div class="logo">Claude <span>Trading</span> Simulator</div>
-  <div><span class="live"><i></i> En direct</span>
+  <div><span class="live" id="liveTag"><i></i> <span id="liveTxt">En direct</span></span>
   <nav style="display:inline"><a href="#dashboard" id="l1">Dashboard</a><a href="#trading" id="l2">Trading</a></nav></div>
 </header>
 
@@ -60,10 +65,40 @@ button:hover{color:var(--txt)}
   </div>
   <div class="card" style="margin-bottom:18px"><h2>Évolution du portefeuille</h2><canvas id="cv"></canvas></div>
   <div class="grid">
+    <div class="card"><h4>Aujourd'hui</h4><div class="big" id="kDay">—</div><div class="small" id="kDayInfo"></div></div>
     <div class="card"><h4>Total investi (entrées)</h4><div class="big" id="kIn">0 €</div></div>
     <div class="card"><h4>Total récupéré (sorties)</h4><div class="big" id="kOut">0 €</div></div>
+    <div class="card"><h4>Gain moyen par trade</h4><div class="big" id="kR">—</div><div class="small">en R (1R = risque pris)</div></div>
     <div class="card"><h4>Meilleur trade</h4><div class="big up" id="kBest">—</div></div>
     <div class="card"><h4>Pire trade</h4><div class="big down" id="kWorst">—</div></div>
+  </div>
+
+  <h2>Règles appliquées par le bot</h2>
+  <div class="rules">
+    <div class="card"><h4>Conditions d'entrée (toutes obligatoires)</h4><ul>
+      <li><b>Liquidité</b> : plus de 50 M$ échangés sur 24 h</li>
+      <li><b>Tendance de fond</b> : prix au-dessus de la moyenne 50 en 15 min, et elle monte</li>
+      <li><b>Déclencheur</b> : la moyenne 5 min vient de croiser au-dessus de la moyenne 20 min</li>
+      <li><b>Volume « baleine »</b> : volume des 3 dernières minutes au moins 1,8× la normale, prix en hausse</li>
+      <li><b>Carnet d'ordres</b> : au moins 1,2× plus d'acheteurs que de vendeurs près du prix</li>
+      <li><b>RSI</b> entre 45 et 70 (élan, sans surchauffe)</li>
+    </ul></div>
+    <div class="card"><h4>Gestion du risque</h4><ul>
+      <li><b>Risque max 1 %</b> du portefeuille par trade</li>
+      <li><b>Stop-loss</b> obligatoire, calé sur la volatilité (0,4 % à 1,5 %)</li>
+      <li><b>Objectif</b> = 2× le risque (ratio 1:2)</li>
+      <li><b>Max 20 %</b> du capital par position, <b>4 positions</b> max</li>
+      <li><b>Pause du jour</b> après 3 pertes ou -3 % sur la journée</li>
+      <li><b>Frais</b> simulés : 0,1 % à l'achat et à la vente</li>
+    </ul></div>
+    <div class="card"><h4>Sorties (scalping)</h4><ul>
+      <li><b>Stop-loss</b> touché</li>
+      <li><b>Objectif</b> atteint</li>
+      <li><b>Point mort</b> : dès +1R, le stop remonte au prix d'entrée</li>
+      <li><b>Durée max</b> : 60 min par trade</li>
+      <li><b>Retournement</b> : tendance qui casse alors que le trade perd</li>
+      <li><b>Pause</b> de 5 min sur une crypto après une sortie</li>
+    </ul></div>
   </div>
   <div class="row"><span class="small" id="kStart"></span><button onclick="resetAll()">↺ Recommencer à 10 000 €</button></div>
 </section>
@@ -71,14 +106,14 @@ button:hover{color:var(--txt)}
 <section id="pTrade" class="hidden">
   <div class="tv"><div class="tradingview-widget-container"><div class="tradingview-widget-container__widget"></div>
   <script src="https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js" async>
-  {"symbols":[{"proName":"NASDAQ:AAPL","title":"Apple"},{"proName":"NASDAQ:NVDA","title":"Nvidia"},{"proName":"NASDAQ:TSLA","title":"Tesla"},{"proName":"NASDAQ:MSFT","title":"Microsoft"},{"proName":"NASDAQ:AMZN","title":"Amazon"},{"proName":"FOREXCOM:SPXUSD","title":"S&P 500"},{"proName":"BINANCE:BTCEUR","title":"Bitcoin"},{"proName":"BINANCE:ETHEUR","title":"Ethereum"}],"showSymbolLogo":true,"colorTheme":"dark","isTransparent":true,"displayMode":"adaptive","locale":"fr"}
+  {"symbols":[{"proName":"NASDAQ:AAPL","title":"Apple"},{"proName":"NASDAQ:NVDA","title":"Nvidia"},{"proName":"NASDAQ:TSLA","title":"Tesla"},{"proName":"NASDAQ:MSFT","title":"Microsoft"},{"proName":"NASDAQ:AMZN","title":"Amazon"},{"proName":"FOREXCOM:SPXUSD","title":"S&P 500"},{"proName":"BINANCE:BTCUSDT","title":"Bitcoin"},{"proName":"BINANCE:ETHUSDT","title":"Ethereum"}],"showSymbolLogo":true,"colorTheme":"dark","isTransparent":true,"displayMode":"adaptive","locale":"fr"}
   </script></div></div>
 
   <h2>Marchés suivis par le bot</h2>
   <div class="mk" id="markets"></div>
 
   <div class="card" style="margin-bottom:18px"><h2>Positions ouvertes</h2><div class="tbl"><table>
-    <thead><tr><th>Actif</th><th>Quantité</th><th>Prix d'entrée</th><th>Prix actuel</th><th>Montant</th><th>Gain/Perte</th><th>Ouverte</th></tr></thead>
+    <thead><tr><th>Actif</th><th>Quantité</th><th>Entrée</th><th>Actuel</th><th>Stop</th><th>Objectif</th><th>Montant</th><th>Gain/Perte</th><th>Ouverte</th></tr></thead>
     <tbody id="pos"></tbody></table></div></div>
 
   <div class="card"><h2>Historique complet</h2><div class="tbl"><table>
@@ -88,49 +123,110 @@ button:hover{color:var(--txt)}
 </main>
 
 <script>
-const START=10000, FEE=0.001, ALLOC=0.15;
-const SYMS=["BTCEUR","ETHEUR","SOLEUR","BNBEUR","XRPEUR","ADAEUR","DOGEEUR","LINKEUR","AVAXEUR","DOTEUR"];
+// ===== Paramètres =====
+const START=10000, FEE=0.001, RISK=0.01, MAXW=0.20, MAXPOS=4;
+const DAY_LOSSES=3, DAY_DD=0.03, MAXHOLD=60*60e3, COOLDOWN=5*60e3, MINVOL=50e6;
+const VOL_X=1.8, BOOK_X=1.2, RSI_MIN=45, RSI_MAX=70, RR=2;
+const SYMS=["BTCUSDT","ETHUSDT","SOLUSDT","BNBUSDT","XRPUSDT","ADAUSDT","DOGEUSDT","LINKUSDT","AVAXUSDT","DOTUSDT","LTCUSDT","TRXUSDT"];
 const HOSTS=["https://data-api.binance.vision","https://api.binance.com"];
-const NAME=s=>s.replace("EUR","");
-let S=load()||fresh(), P={}, CH={};
-function fresh(){return {cash:START,pos:{},trades:[],eq:[[Date.now(),START]],start:Date.now()}}
-function load(){try{return JSON.parse(localStorage.getItem("cts"))}catch(e){return null}}
-function save(){try{localStorage.setItem("cts",JSON.stringify(S))}catch(e){}}
+const KEY="cts_v2";
+const NAME=s=>s.replace("USDT","");
+
+let S=load()||fresh(), P={}, CH={}, FX=null, VOL24={}, HTF={}, ST={}, vol24At=0, online=true;
+function today(){return new Date().toLocaleDateString("fr-CA")}
+function fresh(){return {cash:START,pos:{},trades:[],eq:[[Date.now(),START]],start:Date.now(),day:{d:today(),losses:0,startEq:START},cool:{}}}
+function load(){try{return JSON.parse(localStorage.getItem(KEY))}catch(e){return null}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+
 const eur=v=>v.toLocaleString("fr-FR",{style:"currency",currency:"EUR"});
 const num=v=>v<1?v.toPrecision(4):v.toLocaleString("fr-FR",{maximumFractionDigits:2});
 const sma=(a,n)=>a.slice(-n).reduce((x,y)=>x+y,0)/n;
+function ema(a,n){const k=2/(n+1);let e=a[0];const out=[e];for(let i=1;i<a.length;i++){e=a[i]*k+e*(1-k);out.push(e)}return out}
+function rsi(c,n=14){let g=0,l=0;for(let i=c.length-n;i<c.length;i++){const d=c[i]-c[i-1];d>0?g+=d:l-=d}return l===0?100:100-100/(1+g/l)}
+function atr(k,n=14){let t=0;for(let i=k.length-n;i<k.length;i++){const h=+k[i][2],lo=+k[i][3],pc=+k[i-1][4];t+=Math.max(h-lo,Math.abs(h-pc),Math.abs(lo-pc))}return t/n}
 const equity=()=>S.cash+Object.entries(S.pos).reduce((t,[s,p])=>t+p.qty*(P[s]||p.entry),0);
 const dt=t=>new Date(t).toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit"});
 function resetAll(){if(confirm("Recommencer la simulation à 10 000 € ?")){S=fresh();save();render()}}
 
-async function getK(s){
-  for(const h of HOSTS){try{const r=await fetch(`${h}/api/v3/klines?symbol=${s}&interval=1m&limit=40`);if(r.ok)return await r.json()}catch(e){}}
+async function api(path){
+  for(const h of HOSTS){try{const r=await fetch(h+path);if(r.ok)return await r.json()}catch(e){}}
   return null}
 
-// Stratégie de day trading : croisement de moyennes mobiles MM5/MM20 + RSI, stop-loss et take-profit
-function rsi(c,n=14){let g=0,l=0;for(let i=c.length-n;i<c.length;i++){const d=c[i]-c[i-1];d>0?g+=d:l-=d}return l===0?100:100-100/(1+g/l)}
+// Tendance de fond en 15 min (mise en cache 5 min)
+async function htf(s){
+  const c=HTF[s]; if(c&&Date.now()-c.t<5*60e3)return c.ok;
+  const k=await api(`/api/v3/klines?symbol=${s}&interval=15m&limit=80`); if(!k)return c?c.ok:false;
+  const cl=k.map(x=>+x[4]),e=ema(cl,50),ok=cl.at(-1)>e.at(-1)&&e.at(-1)>e.at(-6);
+  HTF[s]={t:Date.now(),ok};return ok}
+
+// Déséquilibre du carnet d'ordres à ±0,5 % du prix
+async function book(s){
+  const d=await api(`/api/v3/depth?symbol=${s}&limit=100`); if(!d)return 0;
+  const bb=+d.bids[0][0],ba=+d.asks[0][0],mid=(bb+ba)/2;
+  const bid=d.bids.filter(x=>+x[0]>=mid*0.995).reduce((t,x)=>t+x[0]*x[1],0);
+  const ask=d.asks.filter(x=>+x[0]<=mid*1.005).reduce((t,x)=>t+x[0]*x[1],0);
+  return ask?bid/ask:0}
+
+function closePos(s,pE,why){
+  const p=S.pos[s],val=p.qty*pE*(1-FEE),pnl=val-p.cost,R=p.risk?pnl/p.risk:0;
+  S.cash+=val; if(pnl<0)S.day.losses++;
+  S.trades.unshift({t:Date.now(),s,side:"VENTE",price:pE,qty:p.qty,amt:val,pnl,R,why});
+  delete S.pos[s]; S.cool[s]=Date.now()}
 
 async function tick(){
+  const fx=await api("/api/v3/ticker/price?symbol=EURUSDT");
+  online=!!fx; if(fx)FX=+fx.price; if(!FX){render();return}
+  if(Date.now()-vol24At>10*60e3){
+    const v=await api(`/api/v3/ticker/24hr?symbols=${encodeURIComponent(JSON.stringify(SYMS))}`);
+    if(v){v.forEach(x=>VOL24[x.symbol]=+x.quoteVolume);vol24At=Date.now()}}
+  if(S.day.d!==today())S.day={d:today(),losses:0,startEq:equity()};
+  const paused=S.day.losses>=DAY_LOSSES||equity()<S.day.startEq*(1-DAY_DD);
+
   for(const s of SYMS){
-    const k=await getK(s); if(!k||!k.length)continue;
-    const c=k.map(x=>+x[4]), price=c.at(-1); P[s]=price;
-    CH[s]=(price-+k[0][1])/+k[0][1];
-    const f=sma(c,5),sl=sma(c,20),pf=sma(c.slice(0,-1),5),ps=sma(c.slice(0,-1),20),r=rsi(c),p=S.pos[s];
+    const k=await api(`/api/v3/klines?symbol=${s}&interval=1m&limit=60`); if(!k||k.length<30)continue;
+    const c=k.map(x=>+x[4]),vol=k.map(x=>+x[5]),price=c.at(-1),pE=price/FX;
+    P[s]=pE; CH[s]=(price-+k[0][1])/+k[0][1];
+    const f=sma(c,5),sl=sma(c,20),p=S.pos[s];
+
+    // ----- Gestion d'une position ouverte -----
     if(p){
-      const ch=(price-p.entry)/p.entry; p.max=Math.max(p.max||p.entry,price);
-      let why=null;
-      if(ch<=-0.012)why="Stop-loss (-1,2 %)";
-      else if(ch>=0.02)why="Take-profit (+2 %)";
-      else if(ch>0.006&&price<p.max*(1-0.005))why="Stop suiveur, sécurise le gain";
-      else if(f<sl&&pf>=ps)why="Tendance retournée (MM5 < MM20)";
-      if(why){const val=p.qty*price*(1-FEE),pnl=val-p.cost;S.cash+=val;
-        S.trades.unshift({t:Date.now(),s,side:"VENTE",price,qty:p.qty,amt:val,pnl,why});delete S.pos[s]}
-    }else if(f>sl&&pf<=ps&&r<70){
-      const amt=Math.min(S.cash,equity()*ALLOC);
-      if(amt>50){const qty=amt*(1-FEE)/price;S.cash-=amt;
-        S.pos[s]={qty,entry:price,cost:amt,t:Date.now(),max:price};
-        S.trades.unshift({t:Date.now(),s,side:"ACHAT",price,qty,amt,pnl:null,why:`Croisement haussier MM5/MM20, RSI ${r.toFixed(0)}`})}
-    }
+      p.max=Math.max(p.max||p.entry,pE);
+      const r1=p.entry-p.stop0;
+      if(pE<=p.stop)closePos(s,pE,p.be?"Stop au point mort (trade protégé)":"Stop-loss touché");
+      else if(pE>=p.tp)closePos(s,pE,`Objectif atteint (+${RR}R)`);
+      else if(Date.now()-p.t>MAXHOLD)closePos(s,pE,"Durée max 60 min (scalping)");
+      else if(f<sl&&pE<p.entry)closePos(s,pE,"Tendance retournée, sortie avant le stop");
+      else if(!p.be&&pE>=p.entry+r1){p.stop=p.entry*(1+2*FEE);p.be=true}
+      ST[s]=p&&S.pos[s]?"En position":"Position clôturée";
+      continue}
+
+    // ----- Recherche d'une entrée -----
+    const fail=msg=>{ST[s]=msg};
+    if(paused){fail("Pause du jour (limite de pertes)");continue}
+    if(Object.keys(S.pos).length>=MAXPOS){fail("4 positions déjà ouvertes");continue}
+    if(S.cool[s]&&Date.now()-S.cool[s]<COOLDOWN){fail("Pause de 5 min après sortie");continue}
+    if(VOL24[s]!==undefined&&VOL24[s]<MINVOL){fail("Liquidité trop faible");continue}
+    let crossed=false;
+    for(let i=1;i<=3;i++){const cc=c.slice(0,-i);if(sma(cc,5)<=sma(cc,20)){crossed=true;break}}
+    if(!(f>sl&&crossed)){fail("Pas de croisement haussier");continue}
+    const vNow=sma(vol,3),vAvg=vol.slice(-23,-3).reduce((a,b)=>a+b,0)/20,vx=vAvg?vNow/vAvg:0;
+    if(vx<VOL_X||price<=c.at(-4)){fail(`Volume normal (${vx.toFixed(1)}×)`);continue}
+    const r=rsi(c);
+    if(r<RSI_MIN||r>RSI_MAX){fail(`RSI hors zone (${r.toFixed(0)})`);continue}
+    if(!(await htf(s))){fail("Tendance 15 min baissière");continue}
+    const bx=await book(s);
+    if(bx<BOOK_X){fail(`Carnet pas assez acheteur (${bx.toFixed(2)}×)`);continue}
+
+    // Taille de position selon le risque
+    const dist=Math.min(0.015,Math.max(0.004,1.5*atr(k)/price));
+    const eq=equity(),risk=eq*RISK,size=Math.min(risk/dist,eq*MAXW,S.cash);
+    if(size<50){fail("Pas assez de cash");continue}
+    const qty=size*(1-FEE)/pE,stop=pE*(1-dist),tp=pE*(1+RR*dist);
+    S.cash-=size;
+    S.pos[s]={qty,entry:pE,cost:size,risk:size*dist,stop,stop0:stop,tp,t:Date.now(),max:pE,be:false};
+    S.trades.unshift({t:Date.now(),s,side:"ACHAT",price:pE,qty,amt:size,pnl:null,
+      why:`Volume ${vx.toFixed(1)}×, carnet ${bx.toFixed(2)}× acheteur, RSI ${r.toFixed(0)}, tendance 15 min haussière · stop -${(dist*100).toFixed(2).replace(".",",")} %, objectif +${(dist*RR*100).toFixed(2).replace(".",",")} %`});
+    ST[s]="Entrée ✓";
   }
   S.eq.push([Date.now(),equity()]); if(S.eq.length>3000)S.eq=S.eq.filter((_,i)=>i%2===0);
   if(S.trades.length>1000)S.trades.length=1000;
@@ -152,8 +248,8 @@ function chart(){
   x.strokeStyle=col;x.lineWidth=2;x.stroke();
 }
 
-function cls(v){return v>=0?"up":"down"}
-function sign(v){return (v>=0?"+":"")+eur(v)}
+const cls=v=>v>=0?"up":"down";
+const sign=v=>(v>=0?"+":"")+eur(v);
 
 function render(){
   const pg=location.hash==="#trading"?"t":"d";
@@ -161,17 +257,24 @@ function render(){
   l1.className=pg==="d"?"on":"";l2.className=pg==="t"?"on":"";
   const e=equity(),pl=e-START,sells=S.trades.filter(t=>t.side==="VENTE"),buys=S.trades.filter(t=>t.side==="ACHAT");
   const wins=sells.filter(t=>t.pnl>0).length,inv=Object.values(S.pos).reduce((t,p)=>t+p.cost,0);
+  const paused=S.day.losses>=DAY_LOSSES||e<S.day.startEq*(1-DAY_DD);
+  liveTag.className="live"+(paused||!online?" off":"");
+  liveTxt.textContent=!online?"Connexion aux prix…":paused?"En pause aujourd'hui":"En direct";
   kEq.textContent=eur(e);kPl.textContent=sign(pl);kPl.className="big "+cls(pl);
   kPlPct.textContent=(pl>=0?"+":"")+(pl/START*100).toFixed(2)+" %";
   kCash.textContent=eur(S.cash);kInv.textContent=eur(inv)+" en positions";
   kTr.textContent=S.trades.length;kWin.textContent=sells.length?`${Math.round(wins/sells.length*100)} % de trades gagnants`:"Aucun trade clôturé";
+  const dpl=e-S.day.startEq;kDay.textContent=sign(dpl);kDay.className="big "+cls(dpl);
+  kDayInfo.textContent=`${S.day.losses}/${DAY_LOSSES} pertes · `+(paused?"bot en pause jusqu'à demain":"bot actif");
   kIn.textContent=eur(buys.reduce((t,b)=>t+b.amt,0));kOut.textContent=eur(sells.reduce((t,b)=>t+b.amt,0));
+  const Rs=sells.filter(t=>t.R!==undefined).map(t=>t.R);
+  kR.textContent=Rs.length?((Rs.reduce((a,b)=>a+b,0)/Rs.length)>=0?"+":"")+(Rs.reduce((a,b)=>a+b,0)/Rs.length).toFixed(2)+"R":"—";
   const pn=sells.map(t=>t.pnl);kBest.textContent=pn.length?sign(Math.max(...pn)):"—";kWorst.textContent=pn.length?sign(Math.min(...pn)):"—";
   kStart.textContent="Simulation lancée le "+new Date(S.start).toLocaleString("fr-FR");
-  markets.innerHTML=SYMS.filter(s=>P[s]).map(s=>`<div class="card"><b>${NAME(s)}</b> ${S.pos[s]?'<span class="tag buy">EN POSITION</span>':""}<div style="font-size:18px;font-weight:700;margin-top:4px">${num(P[s])} €</div><div class="small ${cls(CH[s]||0)}">${((CH[s]||0)*100).toFixed(2)} % (40 min)</div></div>`).join("")||'<div class="small">Chargement des prix…</div>';
+  markets.innerHTML=SYMS.filter(s=>P[s]).map(s=>`<div class="card"><b>${NAME(s)}</b> ${S.pos[s]?'<span class="tag buy">EN POSITION</span>':""}<div style="font-size:18px;font-weight:700;margin-top:4px">${num(P[s])} €</div><div class="small ${cls(CH[s]||0)}">${((CH[s]||0)*100).toFixed(2)} % (1 h)</div><div class="small" style="margin-top:4px">${ST[s]||""}</div></div>`).join("")||'<div class="small">Chargement des prix…</div>';
   const ps=Object.entries(S.pos);
-  pos.innerHTML=ps.length?ps.map(([s,p])=>{const cur=P[s]||p.entry,v=p.qty*cur-p.cost;return `<tr><td><b>${NAME(s)}</b></td><td>${num(p.qty)}</td><td>${num(p.entry)} €</td><td>${num(cur)} €</td><td>${eur(p.cost)}</td><td class="${cls(v)}">${sign(v)} (${(v/p.cost*100).toFixed(2)} %)</td><td>${dt(p.t)}</td></tr>`}).join(""):'<tr><td colspan="7" class="empty">Aucune position ouverte, le bot attend un signal.</td></tr>';
-  hist.innerHTML=S.trades.length?S.trades.map(t=>`<tr><td>${dt(t.t)}</td><td><b>${NAME(t.s)}</b></td><td><span class="tag ${t.side==="ACHAT"?"buy":"sell"}">${t.side==="ACHAT"?"ENTRÉE":"SORTIE"}</span></td><td>${num(t.price)} €</td><td>${num(t.qty)}</td><td>${eur(t.amt)}</td><td class="${t.pnl==null?"":cls(t.pnl)}">${t.pnl==null?"—":sign(t.pnl)}</td><td class="small">${t.why}</td></tr>`).join(""):'<tr><td colspan="8" class="empty">Pas encore de trade.</td></tr>';
+  pos.innerHTML=ps.length?ps.map(([s,p])=>{const cur=P[s]||p.entry,v=p.qty*cur-p.cost;return `<tr><td><b>${NAME(s)}</b></td><td>${num(p.qty)}</td><td>${num(p.entry)} €</td><td>${num(cur)} €</td><td class="down">${num(p.stop)} €${p.be?" (point mort)":""}</td><td class="up">${num(p.tp)} €</td><td>${eur(p.cost)}</td><td class="${cls(v)}">${sign(v)} (${(v/p.cost*100).toFixed(2)} %)</td><td>${dt(p.t)}</td></tr>`}).join(""):'<tr><td colspan="9" class="empty">Aucune position ouverte, le bot attend un signal complet.</td></tr>';
+  hist.innerHTML=S.trades.length?S.trades.map(t=>`<tr><td>${dt(t.t)}</td><td><b>${NAME(t.s)}</b></td><td><span class="tag ${t.side==="ACHAT"?"buy":"sell"}">${t.side==="ACHAT"?"ENTRÉE":"SORTIE"}</span></td><td>${num(t.price)} €</td><td>${num(t.qty)}</td><td>${eur(t.amt)}</td><td class="${t.pnl==null?"":cls(t.pnl)}">${t.pnl==null?"—":sign(t.pnl)+(t.R!==undefined?` (${t.R>=0?"+":""}${t.R.toFixed(1)}R)`:"")}</td><td class="small">${t.why}</td></tr>`).join(""):'<tr><td colspan="8" class="empty">Pas encore de trade.</td></tr>';
   chart();
 }
 window.addEventListener("hashchange",render);window.addEventListener("resize",chart);
