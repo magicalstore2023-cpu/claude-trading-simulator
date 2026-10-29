@@ -15,6 +15,8 @@ const VOL_X = 1.5, BOOK_X = 1.15, RR = 1.5;
 const CORE = ["BTCUSDT","ETHUSDT","SOLUSDT","BNBUSDT","XRPUSDT","DOGEUSDT"];
 // Exclus : stablecoins, monnaies classiques, jetons à effet de levier
 const EXCLUDE = /^(USDC|FDUSD|TUSD|BUSD|USDP|DAI|USDE|USD1|EUR|EURI|AEUR|GBP|TRY|BRL|PAXG|WBTC|WBETH|BFUSD|XUSD|RLUSD)USDT$|(UP|DOWN|BULL|BEAR)USDT$/;
+// Exclus aussi : actions et ETF tokenisés (pas des cryptos)
+const STOCK_TOKENS = /^(INTC|SOXL|TSLA|NVDA|AAPL|MSFT|AMZN|META|GOOGL|GOOG|NFLX|AMD|COIN|MSTR|HOOD|CRCL|PLTR|SPY|QQQ|TQQQ|SQQQ|IWM|DIA|GLD|SLV|ORCL|AVGO|BABA|UBER)[A-Z]?USDT$/;
 
 // ===== Outils =====
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -46,7 +48,7 @@ const binance = {
   async depth(s) { const d = await getJSON(`${BIN}/api/v3/depth?symbol=${s}&limit=100`); return d ? { bids: d.bids.map(x => [+x[0], +x[1]]), asks: d.asks.map(x => [+x[0], +x[1]]) } : null },
   async tickers() {
     const v = await getJSON(`${BIN}/api/v3/ticker/24hr`, 20000); if (!Array.isArray(v)) return null;
-    return v.filter(x => x.symbol.endsWith("USDT") && !EXCLUDE.test(x.symbol) && +x.quoteVolume > 0 && +x.count > 0)
+    return v.filter(x => x.symbol.endsWith("USDT") && !EXCLUDE.test(x.symbol) && !STOCK_TOKENS.test(x.symbol) && +x.quoteVolume > 0 && +x.count > 0)
       .map(x => ({ s: x.symbol, vol: +x.quoteVolume, ch: +x.priceChangePercent / 100, last: +x.lastPrice }));
   },
   async eurusd() { const p = await getJSON(`${BIN}/api/v3/ticker/price?symbol=EURUSDT`); return p ? +p.price : null },
