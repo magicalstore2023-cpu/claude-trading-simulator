@@ -30,7 +30,6 @@ jobs:
 
       - name: Lancer le bot
         env:
-          TWELVEDATA_KEY: ${{ secrets.TWELVEDATA_KEY }}
           STATE_FILE: state.json
         run: node bot/bot.mjs
 

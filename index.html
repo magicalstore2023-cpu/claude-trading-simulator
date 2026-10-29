@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Claude Trading Simulator</title>
+<title>Claude Crypto Simulator</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#0b0f17;--card:#121826;--line:#1f2937;--txt:#e5e7eb;--mut:#9ca3af;--up:#22c55e;--down:#ef4444;--acc:#facc15}
@@ -52,7 +52,7 @@ button:hover{color:var(--txt)}
 <body>
 <div class="banner">⚠️ Simulation — aucun argent réel</div>
 <header>
-  <div class="logo">Claude <span>Trading</span> Simulator</div>
+  <div class="logo">Claude <span>Crypto</span> Simulator</div>
   <div><span class="live" id="liveTag"><i></i> <span id="liveTxt">En direct</span></span>
   <nav style="display:inline"><a href="#dashboard" id="l1">Dashboard</a><a href="#trading" id="l2">Trading</a></nav></div>
 </header>
@@ -69,7 +69,7 @@ button:hover{color:var(--txt)}
   <div class="grid">
     <div class="card"><h4>Aujourd'hui</h4><div class="big" id="kDay">—</div><div class="small" id="kDayInfo"></div></div>
     <div class="card"><h4>Long / Short</h4><div class="big" id="kLS">—</div><div class="small">trades clôturés</div></div>
-    <div class="card"><h4>Crypto / Bourse</h4><div class="big" id="kCB">—</div><div class="small">gain ou perte par marché</div></div>
+    <div class="card"><h4>Marché scanné</h4><div class="big" id="kCB">—</div><div class="small" id="kScan">cryptos analysées à chaque passage</div></div>
     <div class="card"><h4>Gain moyen par trade</h4><div class="big" id="kR">—</div><div class="small">en R (1R = risque pris)</div></div>
     <div class="card"><h4>Meilleur trade</h4><div class="big up" id="kBest">—</div></div>
     <div class="card"><h4>Pire trade</h4><div class="big down" id="kWorst">—</div></div>
@@ -78,18 +78,18 @@ button:hover{color:var(--txt)}
   <h2>Règles appliquées par le bot</h2>
   <div class="rules">
     <div class="card"><h4>Entrée LONG (pari à la hausse)</h4><ul>
-      <li><b>Tendance de fond</b> haussière (moyenne 50, en 15 min pour la crypto)</li>
+      <li><b>Tendance de fond</b> haussière (moyenne 50 en bougies de 15 min)</li>
       <li><b>Croisement</b> : la moyenne 5 passe au-dessus de la moyenne 20</li>
       <li><b>Volume « baleine »</b> : au moins 1,5× la normale, prix en hausse</li>
       <li><b>RSI</b> entre 45 et 70</li>
-      <li><b>Carnet d'ordres</b> (crypto) : au moins 1,15× plus d'acheteurs</li>
+      <li><b>Carnet d'ordres</b> : au moins 1,15× plus d'acheteurs</li>
     </ul></div>
     <div class="card"><h4>Entrée SHORT (pari à la baisse)</h4><ul>
       <li><b>Tendance de fond</b> baissière</li>
       <li><b>Croisement</b> : la moyenne 5 passe sous la moyenne 20</li>
       <li><b>Volume « baleine »</b> : au moins 1,5× la normale, prix en baisse</li>
       <li><b>RSI</b> entre 30 et 55</li>
-      <li><b>Carnet d'ordres</b> (crypto) : au moins 1,15× plus de vendeurs</li>
+      <li><b>Carnet d'ordres</b> : au moins 1,15× plus de vendeurs</li>
     </ul></div>
     <div class="card"><h4>Gestion du risque</h4><ul>
       <li><b>Risque max 1 %</b> du portefeuille par trade</li>
@@ -99,18 +99,16 @@ button:hover{color:var(--txt)}
       <li><b>Max 16 %</b> du capital par position, <b>6 positions</b> max</li>
       <li><b>Pause du jour</b> après 6 pertes ou -3 % sur la journée</li>
     </ul></div>
-    <div class="card"><h4>Bourse : cassure du range d'ouverture</h4><ul>
-      <li><b>Range</b> = plus haut et plus bas des 15 premières minutes</li>
-      <li><b>Long</b> si une bougie de 5 min clôture au-dessus du range</li>
-      <li><b>Short</b> si elle clôture en dessous</li>
-      <li><b>Stop</b> au milieu du range, objectif 1,5× le risque</li>
-      <li>Un seul signal par action et par jour, pas d'entrée après 15h30 (New York)</li>
+    <div class="card"><h4>Choix des cryptos</h4><ul>
+      <li><b>Tout le marché Binance</b> est scanné (paires en USDT)</li>
+      <li><b>Liquidité</b> : au moins 15 M$ échangés sur 24 h</li>
+      <li><b>40 cryptos</b> suivies : les plus gros mouvements du jour + les plus échangées</li>
+      <li>Stablecoins et jetons à effet de levier exclus</li>
     </ul></div>
     <div class="card"><h4>Sorties</h4><ul>
       <li><b>Stop-loss</b> ou <b>objectif</b> atteint</li>
-      <li><b>Durée max</b> : 30 min (crypto), 60 min (bourse)</li>
+      <li><b>Durée max</b> : 30 min par trade</li>
       <li><b>Retournement</b> de tendance alors que le trade perd</li>
-      <li><b>Bourse</b> : tout est clôturé avant la fermeture (day trading)</li>
       <li><b>Frais</b> simulés : 0,1 % à l'entrée et à la sortie</li>
     </ul></div>
   </div>
@@ -120,18 +118,18 @@ button:hover{color:var(--txt)}
 <section id="pTrade" class="hidden">
   <div class="tv"><div class="tradingview-widget-container"><div class="tradingview-widget-container__widget"></div>
   <script src="https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js" async>
-  {"symbols":[{"proName":"AMEX:SPY","title":"S&P 500"},{"proName":"NASDAQ:QQQ","title":"Nasdaq 100"},{"proName":"NASDAQ:AAPL","title":"Apple"},{"proName":"NASDAQ:NVDA","title":"Nvidia"},{"proName":"NASDAQ:TSLA","title":"Tesla"},{"proName":"NASDAQ:MSFT","title":"Microsoft"},{"proName":"BINANCE:BTCUSDT","title":"Bitcoin"},{"proName":"BINANCE:ETHUSDT","title":"Ethereum"}],"showSymbolLogo":true,"colorTheme":"dark","isTransparent":true,"displayMode":"adaptive","locale":"fr"}
+  {"symbols":[{"proName":"BINANCE:BTCUSDT","title":"Bitcoin"},{"proName":"BINANCE:ETHUSDT","title":"Ethereum"},{"proName":"BINANCE:SOLUSDT","title":"Solana"},{"proName":"BINANCE:XRPUSDT","title":"XRP"},{"proName":"BINANCE:BNBUSDT","title":"BNB"},{"proName":"BINANCE:DOGEUSDT","title":"Dogecoin"}],"showSymbolLogo":true,"colorTheme":"dark","isTransparent":true,"displayMode":"adaptive","locale":"fr"}
   </script></div></div>
 
   <div class="card" style="margin-bottom:18px"><h2>État du bot</h2>
     <div class="small" id="botStat">Chargement…</div>
-    <div class="small" id="stStat" style="margin-top:6px"></div>
   </div>
 
-  <h2>Marchés suivis par le bot</h2>
-  <h3>Bourse US · 9h30–16h00 heure de New York (16h30–23h00 en Israël, sauf décalage d'heure d'été), du lundi au vendredi</h3>
-  <div class="mk" id="mkS"></div>
-  <h3>Crypto · 24h/24</h3>
+  <h2>Radar des opportunités</h2>
+  <h3>Les plus gros mouvements sur 24 h parmi les cryptos liquides</h3>
+  <div class="mk" id="mkR"></div>
+  <h2>Cryptos analysées par le bot</h2>
+  <h3>24h/24 · mises à jour à chaque passage</h3>
   <div class="mk" id="mkC"></div>
 
   <div class="card" style="margin-bottom:18px"><h2>Positions ouvertes</h2><div class="tbl"><table>
@@ -147,11 +145,8 @@ button:hover{color:var(--txt)}
 <script>
 const DATA_URL="https://raw.githubusercontent.com/magicalstore2023-cpu/claude-trading-simulator/data/state.json";
 const START=10000, DAY_LOSSES=6, DAY_DD=0.03;
-const CRYPTO=["BTCUSDT","ETHUSDT","SOLUSDT","BNBUSDT","XRPUSDT","ADAUSDT","DOGEUSDT","LINKUSDT","AVAXUSDT","DOTUSDT","LTCUSDT","TRXUSDT"];
-const STOCKS=[{s:"SPY",n:"S&P 500"},{s:"QQQ",n:"Nasdaq 100"},{s:"DIA",n:"Dow Jones"},{s:"AAPL",n:"Apple"},{s:"NVDA",n:"Nvidia"},{s:"MSFT",n:"Microsoft"},{s:"TSLA",n:"Tesla"},{s:"AMZN",n:"Amazon"},{s:"META",n:"Meta"}];
-const SNAME={};STOCKS.forEach(x=>SNAME[x.s]=x.n);
-const isStock=s=>!!SNAME[s];
-const NAME=s=>isStock(s)?SNAME[s]:s.replace("USDT","");
+const NAME=s=>s.replace(/USDT$/,"");
+const mUSD=v=>v>=1e9?(v/1e9).toFixed(1).replace(".",",")+" Md$":(v/1e6).toFixed(0)+" M$";
 let S=null,P={},CH={},ST={},err="";
 
 const eur=v=>v.toLocaleString("fr-FR",{style:"currency",currency:"EUR"});
@@ -190,14 +185,15 @@ function chart(){
 const cls=v=>v>=0?"up":"down";
 const sign=v=>(v>=0?"+":"")+eur(v);
 const dirTag=d=>(d||1)>0?'<span class="tag buy">LONG</span>':'<span class="tag sell">SHORT</span>';
-function card(s){const p=S&&S.pos[s];return `<div class="card"><b>${NAME(s)}</b> ${isStock(s)?`<span class="small">${s}</span>`:""} ${p?dirTag(p.dir):""}<div style="font-size:18px;font-weight:700;margin-top:4px">${P[s]?num(P[s])+" €":"—"}</div><div class="small ${cls(CH[s]||0)}">${P[s]?((CH[s]||0)*100).toFixed(2).replace(".",",")+(isStock(s)?" % (jour)":" % (1 h)"):""}</div><div class="small" style="margin-top:4px">${ST[s]||""}</div></div>`}
+function card(s){const p=S&&S.pos[s];return `<div class="card"><b>${NAME(s)}</b> ${p?dirTag(p.dir):""}<div style="font-size:18px;font-weight:700;margin-top:4px">${P[s]?num(P[s])+" €":"—"}</div><div class="small ${cls(CH[s]||0)}">${P[s]?((CH[s]||0)*100).toFixed(2).replace(".",",")+" % (1 h)":""}</div><div class="small" style="margin-top:4px">${ST[s]||""}</div></div>`}
+function radar(x){return `<div class="card"><b>${NAME(x.s)}</b> ${S.pos[x.s]?dirTag(S.pos[x.s].dir):""}<div style="font-size:20px;font-weight:800;margin-top:4px" class="${cls(x.ch)}">${x.ch>=0?"+":""}${(x.ch*100).toFixed(1).replace(".",",")} %</div><div class="small">sur 24 h · volume ${mUSD(x.vol)}</div><div class="small" style="margin-top:4px">${ST[x.s]||""}</div></div>`}
 
 function render(){
   const pg=location.hash==="#trading"?"t":"d";
   pDash.classList.toggle("hidden",pg!=="d");pTrade.classList.toggle("hidden",pg!=="t");
   l1.className=pg==="d"?"on":"";l2.className=pg==="t"?"on":"";
   if(!S){liveTag.className="live off";liveTxt.textContent="Démarrage…";botStat.textContent=err||"Chargement…";kStart.textContent=err;
-    mkS.innerHTML=STOCKS.map(x=>card(x.s)).join("");mkC.innerHTML='<div class="small">En attente du premier passage du bot…</div>';return}
+    mkR.innerHTML="";mkC.innerHTML='<div class="small">En attente du premier passage du bot…</div>';return}
   const e=equity(),pl=e-START,exits=S.trades.filter(isExit);
   const wins=exits.filter(t=>t.pnl>0).length,inv=Object.values(S.pos).reduce((t,p)=>t+p.cost,0);
   const paused=S.day.losses>=DAY_LOSSES||e<S.day.startEq*(1-DAY_DD);
@@ -205,7 +201,6 @@ function render(){
   liveTag.className="live"+(paused||stale?" off":"");
   liveTxt.textContent=stale?"Bot en retard":paused?"En pause aujourd'hui":"En direct";
   botStat.textContent=`Bot sur serveur, 24h/24 · dernier passage ${ago(S.updated)} · prix crypto : ${S.provider==="coinbase"?"Coinbase":"Binance"}`+(stale?" · GitHub a pris du retard, il repart tout seul":"");
-  stStat.textContent=S.stStatus||"";
   kEq.textContent=eur(e);kPl.textContent=sign(pl);kPl.className="big "+cls(pl);
   kPlPct.textContent=(pl>=0?"+":"")+(pl/START*100).toFixed(2).replace(".",",")+" %";
   kCash.textContent=eur(S.cash);kInv.textContent=eur(inv)+" en positions";
@@ -213,14 +208,15 @@ function render(){
   const dpl=e-S.day.startEq;kDay.textContent=sign(dpl);kDay.className="big "+cls(dpl);
   kDayInfo.textContent=`${S.day.losses}/${DAY_LOSSES} pertes · `+(paused?"bot en pause jusqu'à demain":"bot actif");
   const nL=exits.filter(t=>(t.dir||1)>0).length;kLS.textContent=`${nL} / ${exits.length-nL}`;
-  const pC=exits.filter(t=>!isStock(t.s)).reduce((a,t)=>a+t.pnl,0),pS=exits.filter(t=>isStock(t.s)).reduce((a,t)=>a+t.pnl,0);
-  kCB.innerHTML=`<span class="${cls(pC)}">${sign(pC)}</span><br><span class="${cls(pS)}" style="font-size:18px">${sign(pS)}</span>`;
+  const sc=S.scanned||{};kCB.textContent=sc.watched?`${sc.watched}`:"—";
+  kScan.textContent=sc.liquid?`analysées sur ${sc.liquid} cryptos liquides (${sc.total} paires)`:"cryptos analysées à chaque passage";
   const Rs=exits.filter(t=>t.R!==undefined).map(t=>t.R),aR=Rs.length?Rs.reduce((a,b)=>a+b,0)/Rs.length:null;
   kR.textContent=aR===null?"—":(aR>=0?"+":"")+f2(aR)+"R";
   const pn=exits.map(t=>t.pnl);kBest.textContent=pn.length?sign(Math.max(...pn)):"—";kWorst.textContent=pn.length?sign(Math.min(...pn)):"—";
   kStart.textContent="Simulation lancée le "+new Date(S.start).toLocaleString("fr-FR");
-  mkS.innerHTML=STOCKS.map(x=>card(x.s)).join("");
-  mkC.innerHTML=CRYPTO.map(card).join("");
+  mkR.innerHTML=(S.radar||[]).map(radar).join("")||'<div class="small">Disponible au prochain passage du bot…</div>';
+  const order=Object.keys(S.P).sort((a,b)=>(S.pos[b]?1:0)-(S.pos[a]?1:0)||Math.abs(CH[b]||0)-Math.abs(CH[a]||0));
+  mkC.innerHTML=order.map(card).join("");
   const ps=Object.entries(S.pos);
   pos.innerHTML=ps.length?ps.map(([s,p])=>{const cur=P[s]||p.entry,v=posVal(s,p)-p.cost;return `<tr><td><b>${NAME(s)}</b></td><td>${dirTag(p.dir)}</td><td>${num(p.qty)}</td><td>${num(p.entry)} €</td><td>${num(cur)} €</td><td class="down">${num(p.stop)} €${p.be?" (point mort)":""}</td><td class="up">${num(p.tp)} €</td><td>${eur(p.cost)}</td><td class="${cls(v)}">${sign(v)} (${(v/p.cost*100).toFixed(2).replace(".",",")} %)</td><td>${dt(p.t)}</td></tr>`}).join(""):'<tr><td colspan="10" class="empty">Aucune position ouverte, le bot attend un signal complet.</td></tr>';
   hist.innerHTML=S.trades.length?S.trades.map(t=>{const ex=isExit(t),lab=ex?'<span class="tag neu">SORTIE</span>':((t.dir||1)>0?'<span class="tag buy">ENTRÉE LONG</span>':'<span class="tag sell">ENTRÉE SHORT</span>');
