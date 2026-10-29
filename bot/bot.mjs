@@ -9,7 +9,7 @@ const TD_KEY = (process.env.TWELVEDATA_KEY || "").trim();
 
 // ===== Paramètres =====
 const START = 10000, FEE = 0.001, RISK = 0.01, MAXW = 0.16, MAXPOS = 6;
-const DAY_LOSSES = 6, DAY_DD = 0.03, COOLDOWN = 3 * 60e3, MINVOL = 50e6;
+const DAY_LOSSES = 6, DAY_DD = 0.03, COOLDOWN = 3 * 60e3, MINVOL = 15e6;
 const VOL_X = 1.5, BOOK_X = 1.15, RR = 1.5;
 const CRYPTO = ["BTCUSDT","ETHUSDT","SOLUSDT","BNBUSDT","XRPUSDT","ADAUSDT","DOGEUSDT","LINKUSDT","AVAXUSDT","DOTUSDT","LTCUSDT","TRXUSDT"];
 const STOCKS = ["SPY","QQQ","DIA","AAPL","NVDA","MSFT","TSLA","AMZN","META"];
