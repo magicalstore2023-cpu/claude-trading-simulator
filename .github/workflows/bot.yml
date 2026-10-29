@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: trading-bot
@@ -44,3 +45,11 @@ jobs:
           git add state.json
           git commit -q -m "Mise à jour du portefeuille"
           git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" data
+
+      - name: Relancer le passage suivant
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sleep 20
+          gh workflow run bot.yml --repo "${GITHUB_REPOSITORY}" --ref main || echo "Relance impossible, le planificateur prendra le relais"
