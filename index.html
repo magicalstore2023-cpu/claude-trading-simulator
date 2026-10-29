@@ -9,6 +9,7 @@
 :root{--bg:#0b0f17;--card:#121826;--line:#1f2937;--txt:#e5e7eb;--mut:#9ca3af;--up:#22c55e;--down:#ef4444;--acc:#facc15}
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--txt);font-family:Inter,system-ui,sans-serif;min-height:100vh}
+a{color:var(--acc)}
 .banner{background:#facc1522;color:var(--acc);text-align:center;font-size:13px;padding:6px;font-weight:600}
 header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--line);flex-wrap:wrap;gap:10px}
 .logo{font-weight:800;font-size:18px}.logo span{color:var(--acc)}
@@ -25,13 +26,14 @@ main{max-width:1200px;margin:0 auto;padding:20px 16px}
 .big{font-size:26px;font-weight:800}
 .up{color:var(--up)}.down{color:var(--down)}.warn{color:var(--acc)}
 h2{font-size:17px;margin:6px 0 12px}
+h3{font-size:14px;color:var(--mut);margin:4px 0 10px;font-weight:600}
 canvas{width:100%;height:260px;display:block}
 .tbl{overflow-x:auto}
 table{width:100%;border-collapse:collapse;font-size:14px}
 th{color:var(--mut);font-weight:600;text-align:left;padding:10px 8px;border-bottom:1px solid var(--line);font-size:12px;text-transform:uppercase}
 td{padding:10px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
 .tag{padding:3px 8px;border-radius:6px;font-size:12px;font-weight:700}
-.buy{background:#22c55e22;color:var(--up)}.sell{background:#ef444422;color:var(--down)}
+.buy{background:#22c55e22;color:var(--up)}.sell{background:#ef444422;color:var(--down)}.neu{background:#9ca3af22;color:var(--txt)}
 .empty{color:var(--mut);text-align:center;padding:24px}
 button{background:transparent;color:var(--mut);border:1px solid var(--line);border-radius:8px;padding:8px 14px;cursor:pointer;font-family:inherit}
 button:hover{color:var(--txt)}
@@ -45,6 +47,8 @@ button:hover{color:var(--txt)}
 .rules ul{list-style:none}
 .rules li{font-size:13px;color:var(--mut);padding:5px 0;border-bottom:1px solid var(--line)}
 .rules li b{color:var(--txt)}
+.keyrow{display:flex;gap:8px;margin:10px 0;flex-wrap:wrap}
+.keyrow input{flex:1;min-width:200px;background:var(--bg);border:1px solid var(--line);border-radius:8px;color:var(--txt);padding:9px 12px;font-family:inherit}
 </style>
 </head>
 <body>
@@ -66,8 +70,8 @@ button:hover{color:var(--txt)}
   <div class="card" style="margin-bottom:18px"><h2>Évolution du portefeuille</h2><canvas id="cv"></canvas></div>
   <div class="grid">
     <div class="card"><h4>Aujourd'hui</h4><div class="big" id="kDay">—</div><div class="small" id="kDayInfo"></div></div>
-    <div class="card"><h4>Total investi (entrées)</h4><div class="big" id="kIn">0 €</div></div>
-    <div class="card"><h4>Total récupéré (sorties)</h4><div class="big" id="kOut">0 €</div></div>
+    <div class="card"><h4>Long / Short</h4><div class="big" id="kLS">—</div><div class="small">trades clôturés</div></div>
+    <div class="card"><h4>Crypto / Bourse</h4><div class="big" id="kCB">—</div><div class="small">gain ou perte par marché</div></div>
     <div class="card"><h4>Gain moyen par trade</h4><div class="big" id="kR">—</div><div class="small">en R (1R = risque pris)</div></div>
     <div class="card"><h4>Meilleur trade</h4><div class="big up" id="kBest">—</div></div>
     <div class="card"><h4>Pire trade</h4><div class="big down" id="kWorst">—</div></div>
@@ -75,29 +79,34 @@ button:hover{color:var(--txt)}
 
   <h2>Règles appliquées par le bot</h2>
   <div class="rules">
-    <div class="card"><h4>Conditions d'entrée (toutes obligatoires)</h4><ul>
-      <li><b>Liquidité</b> : plus de 50 M$ échangés sur 24 h</li>
-      <li><b>Tendance de fond</b> : prix au-dessus de la moyenne 50 en 15 min, et elle monte</li>
-      <li><b>Déclencheur</b> : la moyenne 5 min vient de croiser au-dessus de la moyenne 20 min</li>
-      <li><b>Volume « baleine »</b> : volume des 3 dernières minutes au moins 1,8× la normale, prix en hausse</li>
-      <li><b>Carnet d'ordres</b> : au moins 1,2× plus d'acheteurs que de vendeurs près du prix</li>
-      <li><b>RSI</b> entre 45 et 70 (élan, sans surchauffe)</li>
+    <div class="card"><h4>Entrée LONG (pari à la hausse)</h4><ul>
+      <li><b>Tendance de fond</b> haussière (moyenne 50, en 15 min pour la crypto)</li>
+      <li><b>Croisement</b> : la moyenne 5 passe au-dessus de la moyenne 20</li>
+      <li><b>Volume « baleine »</b> : au moins 1,5× la normale, prix en hausse</li>
+      <li><b>RSI</b> entre 45 et 70</li>
+      <li><b>Carnet d'ordres</b> (crypto) : au moins 1,15× plus d'acheteurs</li>
+    </ul></div>
+    <div class="card"><h4>Entrée SHORT (pari à la baisse)</h4><ul>
+      <li><b>Tendance de fond</b> baissière</li>
+      <li><b>Croisement</b> : la moyenne 5 passe sous la moyenne 20</li>
+      <li><b>Volume « baleine »</b> : au moins 1,5× la normale, prix en baisse</li>
+      <li><b>RSI</b> entre 30 et 55</li>
+      <li><b>Carnet d'ordres</b> (crypto) : au moins 1,15× plus de vendeurs</li>
     </ul></div>
     <div class="card"><h4>Gestion du risque</h4><ul>
       <li><b>Risque max 1 %</b> du portefeuille par trade</li>
-      <li><b>Stop-loss</b> obligatoire, calé sur la volatilité (0,4 % à 1,5 %)</li>
-      <li><b>Objectif</b> = 2× le risque (ratio 1:2)</li>
-      <li><b>Max 20 %</b> du capital par position, <b>4 positions</b> max</li>
-      <li><b>Pause du jour</b> après 3 pertes ou -3 % sur la journée</li>
-      <li><b>Frais</b> simulés : 0,1 % à l'achat et à la vente</li>
-    </ul></div>
-    <div class="card"><h4>Sorties (scalping)</h4><ul>
-      <li><b>Stop-loss</b> touché</li>
-      <li><b>Objectif</b> atteint</li>
+      <li><b>Stop-loss</b> obligatoire, calé sur la volatilité</li>
+      <li><b>Objectif</b> = 1,5× le risque (petits gains rapides)</li>
       <li><b>Point mort</b> : dès +1R, le stop remonte au prix d'entrée</li>
-      <li><b>Durée max</b> : 60 min par trade</li>
-      <li><b>Retournement</b> : tendance qui casse alors que le trade perd</li>
-      <li><b>Pause</b> de 5 min sur une crypto après une sortie</li>
+      <li><b>Max 16 %</b> du capital par position, <b>6 positions</b> max</li>
+      <li><b>Pause du jour</b> après 6 pertes ou -3 % sur la journée</li>
+    </ul></div>
+    <div class="card"><h4>Sorties</h4><ul>
+      <li><b>Stop-loss</b> ou <b>objectif</b> atteint</li>
+      <li><b>Durée max</b> : 30 min (crypto), 60 min (bourse)</li>
+      <li><b>Retournement</b> de tendance alors que le trade perd</li>
+      <li><b>Bourse</b> : tout est clôturé avant la fermeture (day trading)</li>
+      <li><b>Frais</b> simulés : 0,1 % à l'entrée et à la sortie</li>
     </ul></div>
   </div>
   <div class="row"><span class="small" id="kStart"></span><button onclick="resetAll()">↺ Recommencer à 10 000 €</button></div>
@@ -106,14 +115,23 @@ button:hover{color:var(--txt)}
 <section id="pTrade" class="hidden">
   <div class="tv"><div class="tradingview-widget-container"><div class="tradingview-widget-container__widget"></div>
   <script src="https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js" async>
-  {"symbols":[{"proName":"NASDAQ:AAPL","title":"Apple"},{"proName":"NASDAQ:NVDA","title":"Nvidia"},{"proName":"NASDAQ:TSLA","title":"Tesla"},{"proName":"NASDAQ:MSFT","title":"Microsoft"},{"proName":"NASDAQ:AMZN","title":"Amazon"},{"proName":"FOREXCOM:SPXUSD","title":"S&P 500"},{"proName":"BINANCE:BTCUSDT","title":"Bitcoin"},{"proName":"BINANCE:ETHUSDT","title":"Ethereum"}],"showSymbolLogo":true,"colorTheme":"dark","isTransparent":true,"displayMode":"adaptive","locale":"fr"}
+  {"symbols":[{"proName":"AMEX:SPY","title":"S&P 500"},{"proName":"NASDAQ:QQQ","title":"Nasdaq 100"},{"proName":"NASDAQ:AAPL","title":"Apple"},{"proName":"NASDAQ:NVDA","title":"Nvidia"},{"proName":"NASDAQ:TSLA","title":"Tesla"},{"proName":"NASDAQ:MSFT","title":"Microsoft"},{"proName":"BINANCE:BTCUSDT","title":"Bitcoin"},{"proName":"BINANCE:ETHUSDT","title":"Ethereum"}],"showSymbolLogo":true,"colorTheme":"dark","isTransparent":true,"displayMode":"adaptive","locale":"fr"}
   </script></div></div>
 
+  <div class="card" style="margin-bottom:18px"><h2>Bourse US (indices et actions)</h2>
+    <div class="small" id="stStat"></div>
+    <div class="keyrow"><input id="tdKey" type="password" placeholder="Colle ta clé API Twelve Data"><button onclick="saveKey()">Enregistrer</button></div>
+    <div class="small">Clé gratuite sur <a href="https://twelvedata.com" target="_blank" rel="noopener">twelvedata.com</a>. Elle reste dans ton navigateur et n'est jamais publiée sur GitHub.</div>
+  </div>
+
   <h2>Marchés suivis par le bot</h2>
-  <div class="mk" id="markets"></div>
+  <h3>Bourse US · 16h30–23h00 (heure d'Israël), du lundi au vendredi</h3>
+  <div class="mk" id="mkS"></div>
+  <h3>Crypto · 24h/24</h3>
+  <div class="mk" id="mkC"></div>
 
   <div class="card" style="margin-bottom:18px"><h2>Positions ouvertes</h2><div class="tbl"><table>
-    <thead><tr><th>Actif</th><th>Quantité</th><th>Entrée</th><th>Actuel</th><th>Stop</th><th>Objectif</th><th>Montant</th><th>Gain/Perte</th><th>Ouverte</th></tr></thead>
+    <thead><tr><th>Actif</th><th>Sens</th><th>Quantité</th><th>Entrée</th><th>Actuel</th><th>Stop</th><th>Objectif</th><th>Montant</th><th>Gain/Perte</th><th>Ouverte</th></tr></thead>
     <tbody id="pos"></tbody></table></div></div>
 
   <div class="card"><h2>Historique complet</h2><div class="tbl"><table>
@@ -124,120 +142,196 @@ button:hover{color:var(--txt)}
 
 <script>
 // ===== Paramètres =====
-const START=10000, FEE=0.001, RISK=0.01, MAXW=0.20, MAXPOS=4;
-const DAY_LOSSES=3, DAY_DD=0.03, MAXHOLD=60*60e3, COOLDOWN=5*60e3, MINVOL=50e6;
-const VOL_X=1.8, BOOK_X=1.2, RSI_MIN=45, RSI_MAX=70, RR=2;
-const SYMS=["BTCUSDT","ETHUSDT","SOLUSDT","BNBUSDT","XRPUSDT","ADAUSDT","DOGEUSDT","LINKUSDT","AVAXUSDT","DOTUSDT","LTCUSDT","TRXUSDT"];
+const START=10000, FEE=0.001, RISK=0.01, MAXW=0.16, MAXPOS=6;
+const DAY_LOSSES=6, DAY_DD=0.03, COOLDOWN=3*60e3, MINVOL=50e6;
+const VOL_X=1.5, BOOK_X=1.15, RR=1.5;
+const CRYPTO=["BTCUSDT","ETHUSDT","SOLUSDT","BNBUSDT","XRPUSDT","ADAUSDT","DOGEUSDT","LINKUSDT","AVAXUSDT","DOTUSDT","LTCUSDT","TRXUSDT"];
+const STOCKS=[{s:"SPY",n:"S&P 500"},{s:"QQQ",n:"Nasdaq 100"},{s:"DIA",n:"Dow Jones"},{s:"AAPL",n:"Apple"},{s:"NVDA",n:"Nvidia"},{s:"MSFT",n:"Microsoft"},{s:"TSLA",n:"Tesla"},{s:"AMZN",n:"Amazon"},{s:"META",n:"Meta"}];
+const SNAME={};STOCKS.forEach(x=>SNAME[x.s]=x.n);
+const isStock=s=>!!SNAME[s];
+const NAME=s=>isStock(s)?SNAME[s]:s.replace("USDT","");
 const HOSTS=["https://data-api.binance.vision","https://api.binance.com"];
-const KEY="cts_v2";
-const NAME=s=>s.replace("USDT","");
+const KEY="cts_v2", TDKEY="td_key", TD_DAY_MAX=780;
 
-let S=load()||fresh(), P={}, CH={}, FX=null, VOL24={}, HTF={}, ST={}, vol24At=0, online=true;
+let S=load()||fresh();
+if(!S.cool)S.cool={}; if(!S.td)S.td={d:"",used:0};
+let P={},CH={},FX=null,VOL24={},HTF={},ST={},vol24At=0,online=true,busy=false;
+let stSlot=null,stQueue=[],stLast=0,stStatus="";
+
 function today(){return new Date().toLocaleDateString("fr-CA")}
-function fresh(){return {cash:START,pos:{},trades:[],eq:[[Date.now(),START]],start:Date.now(),day:{d:today(),losses:0,startEq:START},cool:{}}}
+function fresh(){return {cash:START,pos:{},trades:[],eq:[[Date.now(),START]],start:Date.now(),day:{d:today(),losses:0,startEq:START},cool:{},td:{d:"",used:0}}}
 function load(){try{return JSON.parse(localStorage.getItem(KEY))}catch(e){return null}}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+function getKey(){try{return localStorage.getItem(TDKEY)||""}catch(e){return ""}}
+function saveKey(){const v=tdKey.value.trim();try{v?localStorage.setItem(TDKEY,v):localStorage.removeItem(TDKEY)}catch(e){}tdKey.value="";stSlot=null;stLast=0;render();stockTick()}
 
 const eur=v=>v.toLocaleString("fr-FR",{style:"currency",currency:"EUR"});
 const num=v=>v<1?v.toPrecision(4):v.toLocaleString("fr-FR",{maximumFractionDigits:2});
+const f1=v=>v.toFixed(1).replace(".",","), f2=v=>v.toFixed(2).replace(".",",");
+const pct=d=>(d*100).toFixed(2).replace(".",",")+" %";
 const sma=(a,n)=>a.slice(-n).reduce((x,y)=>x+y,0)/n;
 function ema(a,n){const k=2/(n+1);let e=a[0];const out=[e];for(let i=1;i<a.length;i++){e=a[i]*k+e*(1-k);out.push(e)}return out}
 function rsi(c,n=14){let g=0,l=0;for(let i=c.length-n;i<c.length;i++){const d=c[i]-c[i-1];d>0?g+=d:l-=d}return l===0?100:100-100/(1+g/l)}
-function atr(k,n=14){let t=0;for(let i=k.length-n;i<k.length;i++){const h=+k[i][2],lo=+k[i][3],pc=+k[i-1][4];t+=Math.max(h-lo,Math.abs(h-pc),Math.abs(lo-pc))}return t/n}
-const equity=()=>S.cash+Object.entries(S.pos).reduce((t,[s,p])=>t+p.qty*(P[s]||p.entry),0);
+function atrB(b,n=14){let t=0;for(let i=b.length-n;i<b.length;i++)t+=Math.max(b[i].h-b[i].l,Math.abs(b[i].h-b[i-1].c),Math.abs(b[i].l-b[i-1].c));return t/n}
+function trendDir(cl){const e=ema(cl,50),a=cl.at(-1),e1=e.at(-1),e6=e.at(-6);return a>e1&&e1>e6?1:a<e1&&e1<e6?-1:0}
+function crossed(c,dir){for(let i=1;i<=3;i++){const cc=c.slice(0,-i),a=sma(cc,5),b=sma(cc,20);if(dir>0?a<=b:a>=b)return true}return false}
+const posVal=(s,p)=>{const cur=P[s]||p.entry;return (p.dir||1)>0?p.qty*cur:p.cost+p.qty*(p.entry-cur)};
+const equity=()=>S.cash+Object.entries(S.pos).reduce((t,[s,p])=>t+posVal(s,p),0);
+const isPaused=()=>S.day.losses>=DAY_LOSSES||equity()<S.day.startEq*(1-DAY_DD);
 const dt=t=>new Date(t).toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit"});
+const isExit=t=>t.side==="VENTE"||t.side==="SORTIE";
 function resetAll(){if(confirm("Recommencer la simulation à 10 000 € ?")){S=fresh();save();render()}}
 
 async function api(path){
   for(const h of HOSTS){try{const r=await fetch(h+path);if(r.ok)return await r.json()}catch(e){}}
   return null}
 
-// Tendance de fond en 15 min (mise en cache 5 min)
-async function htf(s){
-  const c=HTF[s]; if(c&&Date.now()-c.t<5*60e3)return c.ok;
-  const k=await api(`/api/v3/klines?symbol=${s}&interval=15m&limit=80`); if(!k)return c?c.ok:false;
-  const cl=k.map(x=>+x[4]),e=ema(cl,50),ok=cl.at(-1)>e.at(-1)&&e.at(-1)>e.at(-6);
-  HTF[s]={t:Date.now(),ok};return ok}
+// Tendance de fond crypto en 15 min (cache 5 min)
+async function htfCrypto(s){
+  const c=HTF[s]; if(c&&Date.now()-c.t<5*60e3)return c.dir;
+  const k=await api(`/api/v3/klines?symbol=${s}&interval=15m&limit=80`); if(!k)return c?c.dir:0;
+  const dir=trendDir(k.map(x=>+x[4]));HTF[s]={t:Date.now(),dir};return dir}
 
-// Déséquilibre du carnet d'ordres à ±0,5 % du prix
+// Rapport acheteurs / vendeurs dans le carnet à ±0,5 % du prix
 async function book(s){
-  const d=await api(`/api/v3/depth?symbol=${s}&limit=100`); if(!d)return 0;
-  const bb=+d.bids[0][0],ba=+d.asks[0][0],mid=(bb+ba)/2;
+  const d=await api(`/api/v3/depth?symbol=${s}&limit=100`); if(!d||!d.bids.length||!d.asks.length)return 0;
+  const mid=(+d.bids[0][0]+ +d.asks[0][0])/2;
   const bid=d.bids.filter(x=>+x[0]>=mid*0.995).reduce((t,x)=>t+x[0]*x[1],0);
   const ask=d.asks.filter(x=>+x[0]<=mid*1.005).reduce((t,x)=>t+x[0]*x[1],0);
   return ask?bid/ask:0}
 
-function closePos(s,pE,why){
-  const p=S.pos[s],val=p.qty*pE*(1-FEE),pnl=val-p.cost,R=p.risk?pnl/p.risk:0;
-  S.cash+=val; if(pnl<0)S.day.losses++;
-  S.trades.unshift({t:Date.now(),s,side:"VENTE",price:pE,qty:p.qty,amt:val,pnl,R,why});
-  delete S.pos[s]; S.cool[s]=Date.now()}
+function closePos(s,ex,why){
+  const p=S.pos[s],dir=p.dir||1;let pnl;
+  if(dir>0){const val=p.qty*ex*(1-FEE);pnl=val-p.cost;S.cash+=val}
+  else{pnl=p.qty*(p.entry-ex)-p.qty*(p.entry+ex)*FEE;S.cash+=p.cost+pnl}
+  const R=p.risk?pnl/p.risk:0; if(pnl<0)S.day.losses++;
+  S.trades.unshift({t:Date.now(),s,side:"SORTIE",dir,price:ex,qty:p.qty,amt:p.cost+pnl,pnl,R,why});
+  delete S.pos[s];S.cool[s]=Date.now();ST[s]="Position clôturée"}
 
+// Gestion d'une position ouverte (long ou short)
+function manage(s,bars,conv,o){
+  const p=S.pos[s];p.dir=p.dir||1;if(p.min===undefined)p.min=p.entry;
+  if(p.last===undefined)p.last=isStock(s)?bars.at(-1).t:p.t;
+  const stopWhy=p.be?"Stop au point mort (trade protégé)":"Stop-loss touché",tpWhy=`Objectif atteint (+${f1(RR)}R)`;
+  for(let i=0;i<bars.length-1;i++){const b=bars[i];if(!(b.t>p.last))continue;
+    const lo=b.l/conv,hi=b.h/conv,op=b.o/conv;
+    if(p.dir>0){if(lo<=p.stop)return closePos(s,Math.min(op,p.stop),stopWhy);if(hi>=p.tp)return closePos(s,Math.max(op,p.tp),tpWhy);p.max=Math.max(p.max,hi)}
+    else{if(hi>=p.stop)return closePos(s,Math.max(op,p.stop),stopWhy);if(lo<=p.tp)return closePos(s,Math.min(op,p.tp),tpWhy);p.min=Math.min(p.min,lo)}}
+  const lc=bars.at(-2).t;if(lc>p.last)p.last=lc;
+  const cur=bars.at(-1).c/conv;
+  if(p.dir>0){if(cur<=p.stop)return closePos(s,cur,stopWhy);if(cur>=p.tp)return closePos(s,cur,tpWhy);p.max=Math.max(p.max,cur)}
+  else{if(cur>=p.stop)return closePos(s,cur,stopWhy);if(cur<=p.tp)return closePos(s,cur,tpWhy);p.min=Math.min(p.min,cur)}
+  const r1=Math.abs(p.entry-p.stop0);
+  if(!p.be){if(p.dir>0&&p.max>=p.entry+r1){p.stop=p.entry*(1+2*FEE);p.be=true}
+            if(p.dir<0&&p.min<=p.entry-r1){p.stop=p.entry*(1-2*FEE);p.be=true}}
+  if(o.forceClose)return closePos(s,cur,"Clôture avant la fermeture de la bourse");
+  if(Date.now()-p.t>o.maxHold)return closePos(s,cur,`Durée max ${o.maxHold/60e3} min`);
+  const c=bars.map(b=>b.c),f=sma(c,5),sl=sma(c,20);
+  if(p.dir>0&&f<sl&&cur<p.entry)return closePos(s,cur,"Tendance retournée, sortie avant le stop");
+  if(p.dir<0&&f>sl&&cur>p.entry)return closePos(s,cur,"Tendance retournée, sortie avant le stop");
+  ST[s]=p.dir>0?"En position LONG":"En position SHORT"}
+
+// Recherche d'une entrée long ou short
+async function evaluate(s,bars,conv,o){
+  const fail=m=>{ST[s]=m};
+  if(o.paused)return fail("Pause du jour (limite de pertes)");
+  if(Object.keys(S.pos).length>=MAXPOS)return fail(`${MAXPOS} positions déjà ouvertes`);
+  if(S.cool[s]&&Date.now()-S.cool[s]<COOLDOWN)return fail("Pause de 3 min après sortie");
+  if(o.noEntry)return fail(o.noEntry);
+  const c=bars.map(b=>b.c),vol=bars.map(b=>b.v),price=c.at(-1),f=sma(c,5),sl=sma(c,20);
+  let dir=0;if(f>sl&&crossed(c,1))dir=1;else if(f<sl&&crossed(c,-1))dir=-1;
+  if(!dir)return fail("Pas de croisement");
+  const vNow=sma(vol,3),vAvg=vol.slice(-23,-3).reduce((a,b)=>a+b,0)/20,vx=vAvg?vNow/vAvg:0;
+  const mom=dir>0?price>c.at(-4):price<c.at(-4);
+  if(vx<VOL_X||!mom)return fail(`Volume normal (${f1(vx)}×)`);
+  const r=rsi(c);
+  if(dir>0&&(r<45||r>70))return fail(`RSI hors zone long (${r.toFixed(0)})`);
+  if(dir<0&&(r<30||r>55))return fail(`RSI hors zone short (${r.toFixed(0)})`);
+  if((await o.trend())!==dir)return fail(dir>0?"Tendance de fond pas haussière":"Tendance de fond pas baissière");
+  let bx=null;
+  if(o.book){const ratio=await o.book();bx=dir>0?ratio:(ratio?1/ratio:0);
+    if(bx<BOOK_X)return fail(`Carnet pas assez ${dir>0?"acheteur":"vendeur"} (${f2(bx)}×)`)}
+  if(S.pos[s]||Object.keys(S.pos).length>=MAXPOS)return;
+  const dist=Math.min(o.dmax,Math.max(o.dmin,1.5*atrB(bars)/price));
+  const eq=equity(),size=Math.min(eq*RISK/dist,eq*MAXW,S.cash);
+  if(size<50)return fail("Pas assez de cash");
+  const pE=price/conv,qty=dir>0?size*(1-FEE)/pE:size/pE;
+  const stop=dir>0?pE*(1-dist):pE*(1+dist),tp=dir>0?pE*(1+RR*dist):pE*(1-RR*dist);
+  S.cash-=size;
+  S.pos[s]={dir,qty,entry:pE,cost:size,risk:size*dist,stop,stop0:stop,tp,t:Date.now(),max:pE,min:pE,be:false,last:bars.at(-1).t};
+  S.trades.unshift({t:Date.now(),s,side:"ENTREE",dir,price:pE,qty,amt:size,pnl:null,
+    why:`${dir>0?"Long":"Short"} · volume ${f1(vx)}×${bx!==null?`, carnet ${f2(bx)}× ${dir>0?"acheteur":"vendeur"}`:""}, RSI ${r.toFixed(0)}, tendance de fond ${dir>0?"haussière":"baissière"} · stop ${pct(dist)}, objectif ${pct(dist*RR)}`});
+  ST[s]=dir>0?"Entrée LONG ✓":"Entrée SHORT ✓"}
+
+// ===== Crypto : toutes les 20 secondes =====
 async function tick(){
-  const fx=await api("/api/v3/ticker/price?symbol=EURUSDT");
-  online=!!fx; if(fx)FX=+fx.price; if(!FX){render();return}
-  if(Date.now()-vol24At>10*60e3){
-    const v=await api(`/api/v3/ticker/24hr?symbols=${encodeURIComponent(JSON.stringify(SYMS))}`);
-    if(v){v.forEach(x=>VOL24[x.symbol]=+x.quoteVolume);vol24At=Date.now()}}
-  if(S.day.d!==today())S.day={d:today(),losses:0,startEq:equity()};
-  const paused=S.day.losses>=DAY_LOSSES||equity()<S.day.startEq*(1-DAY_DD);
+  if(busy)return;busy=true;
+  try{
+    const fx=await api("/api/v3/ticker/price?symbol=EURUSDT");
+    online=!!fx;if(fx)FX=+fx.price;if(!FX)return;
+    if(Date.now()-vol24At>10*60e3){
+      const v=await api(`/api/v3/ticker/24hr?symbols=${encodeURIComponent(JSON.stringify(CRYPTO))}`);
+      if(v){v.forEach(x=>VOL24[x.symbol]=+x.quoteVolume);vol24At=Date.now()}}
+    if(S.day.d!==today())S.day={d:today(),losses:0,startEq:equity()};
+    const paused=isPaused();
+    for(const s of CRYPTO){
+      const k=await api(`/api/v3/klines?symbol=${s}&interval=1m&limit=60`);if(!k||k.length<30)continue;
+      const bars=k.map(x=>({t:+x[0],o:+x[1],h:+x[2],l:+x[3],c:+x[4],v:+x[5]}));
+      P[s]=bars.at(-1).c/FX;CH[s]=(bars.at(-1).c-bars[0].o)/bars[0].o;
+      if(S.pos[s]){manage(s,bars,FX,{maxHold:30*60e3});continue}
+      if(VOL24[s]!==undefined&&VOL24[s]<MINVOL){ST[s]="Liquidité trop faible";continue}
+      await evaluate(s,bars,FX,{paused,trend:()=>htfCrypto(s),book:()=>book(s),dmin:0.003,dmax:0.012});
+    }
+    S.eq.push([Date.now(),equity()]);if(S.eq.length>3000)S.eq=S.eq.filter((_,i)=>i%2===0);
+    if(S.trades.length>1000)S.trades.length=1000;
+    save();
+  }finally{busy=false;render()}
+}
 
-  for(const s of SYMS){
-    const k=await api(`/api/v3/klines?symbol=${s}&interval=1m&limit=60`); if(!k||k.length<30)continue;
-    const c=k.map(x=>+x[4]),vol=k.map(x=>+x[5]),price=c.at(-1),pE=price/FX;
-    P[s]=pE; CH[s]=(price-+k[0][1])/+k[0][1];
-    const f=sma(c,5),sl=sma(c,20),p=S.pos[s];
+// ===== Bourse US : bougies de 5 min via Twelve Data =====
+function ny(){const d=new Date(new Date().toLocaleString("en-US",{timeZone:"America/New_York"}));return{day:d.getDay(),m:d.getHours()*60+d.getMinutes()}}
+function mkt(){const n=ny();if(n.day===0||n.day===6||n.m<570||n.m>=960)return "closed";if(n.m>=950)return "closing";if(n.m<575)return "opening";return "open"}
 
-    // ----- Gestion d'une position ouverte -----
-    if(p){
-      p.max=Math.max(p.max||p.entry,pE);
-      const r1=p.entry-p.stop0;
-      if(pE<=p.stop)closePos(s,pE,p.be?"Stop au point mort (trade protégé)":"Stop-loss touché");
-      else if(pE>=p.tp)closePos(s,pE,`Objectif atteint (+${RR}R)`);
-      else if(Date.now()-p.t>MAXHOLD)closePos(s,pE,"Durée max 60 min (scalping)");
-      else if(f<sl&&pE<p.entry)closePos(s,pE,"Tendance retournée, sortie avant le stop");
-      else if(!p.be&&pE>=p.entry+r1){p.stop=p.entry*(1+2*FEE);p.be=true}
-      ST[s]=p&&S.pos[s]?"En position":"Position clôturée";
-      continue}
-
-    // ----- Recherche d'une entrée -----
-    const fail=msg=>{ST[s]=msg};
-    if(paused){fail("Pause du jour (limite de pertes)");continue}
-    if(Object.keys(S.pos).length>=MAXPOS){fail("4 positions déjà ouvertes");continue}
-    if(S.cool[s]&&Date.now()-S.cool[s]<COOLDOWN){fail("Pause de 5 min après sortie");continue}
-    if(VOL24[s]!==undefined&&VOL24[s]<MINVOL){fail("Liquidité trop faible");continue}
-    let crossed=false;
-    for(let i=1;i<=3;i++){const cc=c.slice(0,-i);if(sma(cc,5)<=sma(cc,20)){crossed=true;break}}
-    if(!(f>sl&&crossed)){fail("Pas de croisement haussier");continue}
-    const vNow=sma(vol,3),vAvg=vol.slice(-23,-3).reduce((a,b)=>a+b,0)/20,vx=vAvg?vNow/vAvg:0;
-    if(vx<VOL_X||price<=c.at(-4)){fail(`Volume normal (${vx.toFixed(1)}×)`);continue}
-    const r=rsi(c);
-    if(r<RSI_MIN||r>RSI_MAX){fail(`RSI hors zone (${r.toFixed(0)})`);continue}
-    if(!(await htf(s))){fail("Tendance 15 min baissière");continue}
-    const bx=await book(s);
-    if(bx<BOOK_X){fail(`Carnet pas assez acheteur (${bx.toFixed(2)}×)`);continue}
-
-    // Taille de position selon le risque
-    const dist=Math.min(0.015,Math.max(0.004,1.5*atr(k)/price));
-    const eq=equity(),risk=eq*RISK,size=Math.min(risk/dist,eq*MAXW,S.cash);
-    if(size<50){fail("Pas assez de cash");continue}
-    const qty=size*(1-FEE)/pE,stop=pE*(1-dist),tp=pE*(1+RR*dist);
-    S.cash-=size;
-    S.pos[s]={qty,entry:pE,cost:size,risk:size*dist,stop,stop0:stop,tp,t:Date.now(),max:pE,be:false};
-    S.trades.unshift({t:Date.now(),s,side:"ACHAT",price:pE,qty,amt:size,pnl:null,
-      why:`Volume ${vx.toFixed(1)}×, carnet ${bx.toFixed(2)}× acheteur, RSI ${r.toFixed(0)}, tendance 15 min haussière · stop -${(dist*100).toFixed(2).replace(".",",")} %, objectif +${(dist*RR*100).toFixed(2).replace(".",",")} %`});
-    ST[s]="Entrée ✓";
+async function stockTick(){
+  const key=getKey();
+  if(!key){stStatus="Ajoute ta clé Twelve Data pour activer la bourse.";return render()}
+  const m=mkt();
+  if(m==="closed"){stStatus="Bourse US fermée. Ouverture du lundi au vendredi, de 16h30 à 23h00 (heure d'Israël).";return render()}
+  if(!FX)return;
+  if(S.td.d!==today())S.td={d:today(),used:0};
+  const slot=Math.floor(Date.now()/300000);
+  if(slot!==stSlot){stSlot=slot;stQueue=[STOCKS.slice(0,5),STOCKS.slice(5)].map(a=>a.map(x=>x.s))}
+  if(!stQueue.length||Date.now()-stLast<62000)return;
+  const batch=stQueue[0];
+  if(S.td.used+batch.length>TD_DAY_MAX){stStatus="Quota gratuit du jour atteint, reprise demain.";return render()}
+  stQueue.shift();stLast=Date.now();
+  let d;
+  try{const r=await fetch(`https://api.twelvedata.com/time_series?symbol=${batch.join(",")}&interval=5min&outputsize=60&apikey=${encodeURIComponent(key)}`);d=await r.json()}
+  catch(e){stStatus="Connexion à Twelve Data impossible.";return render()}
+  S.td.used+=batch.length;
+  if(d&&d.status==="error"){stStatus="Erreur Twelve Data : "+String(d.message||"").slice(0,140);save();return render()}
+  const map=batch.length===1?{[batch[0]]:d}:d,paused=isPaused();
+  for(const s of batch){
+    const x=map&&map[s];if(!x||x.status==="error"||!x.values){ST[s]="Données indisponibles";continue}
+    const bars=x.values.slice().reverse().map(v=>({t:v.datetime,o:+v.open,h:+v.high,l:+v.low,c:+v.close,v:+(v.volume||0)}));
+    if(bars.length<30)continue;
+    P[s]=bars.at(-1).c/FX;
+    const day=bars.at(-1).t.slice(0,10),first=bars.find(b=>b.t.startsWith(day));
+    CH[s]=first?(bars.at(-1).c-first.o)/first.o:0;
+    if(S.pos[s]){manage(s,bars,FX,{maxHold:60*60e3,forceClose:m==="closing"});continue}
+    const cl=bars.map(b=>b.c);
+    await evaluate(s,bars,FX,{paused,trend:async()=>trendDir(cl),dmin:0.003,dmax:0.015,
+      noEntry:m==="closing"?"Plus d'entrée avant la fermeture":m==="opening"?"Attente des 5 premières minutes":null});
   }
-  S.eq.push([Date.now(),equity()]); if(S.eq.length>3000)S.eq=S.eq.filter((_,i)=>i%2===0);
-  if(S.trades.length>1000)S.trades.length=1000;
-  save(); render();
+  stStatus=`Bourse US ouverte · analyse toutes les 5 min · ${S.td.used}/${TD_DAY_MAX} requêtes gratuites utilisées aujourd'hui`;
+  save();render();
 }
 
 function chart(){
-  const cv=document.getElementById("cv"); if(!cv||cv.offsetParent===null)return;
+  const cv=document.getElementById("cv");if(!cv||cv.offsetParent===null)return;
   const W=cv.clientWidth,H=260,dpr=window.devicePixelRatio||1;cv.width=W*dpr;cv.height=H*dpr;
   const x=cv.getContext("2d");x.scale(dpr,dpr);x.clearRect(0,0,W,H);
-  const v=S.eq.map(e=>e[1]); if(v.length<2){x.fillStyle="#9ca3af";x.font="14px Inter";x.fillText("Le graphique se remplit en direct…",12,30);return}
+  const v=S.eq.map(e=>e[1]);if(v.length<2){x.fillStyle="#9ca3af";x.font="14px Inter";x.fillText("Le graphique se remplit en direct…",12,30);return}
   const mn=Math.min(...v,START)*0.9995,mx=Math.max(...v,START)*1.0005,Y=a=>H-12-(a-mn)/(mx-mn)*(H-24);
   x.strokeStyle="#374151";x.setLineDash([4,4]);x.beginPath();x.moveTo(0,Y(START));x.lineTo(W,Y(START));x.stroke();x.setLineDash([]);
   const col=v.at(-1)>=START?"#22c55e":"#ef4444";
@@ -250,35 +344,42 @@ function chart(){
 
 const cls=v=>v>=0?"up":"down";
 const sign=v=>(v>=0?"+":"")+eur(v);
+const dirTag=d=>(d||1)>0?'<span class="tag buy">LONG</span>':'<span class="tag sell">SHORT</span>';
+function card(s){const p=S.pos[s];return `<div class="card"><b>${NAME(s)}</b> ${isStock(s)?`<span class="small">${s}</span>`:""} ${p?dirTag(p.dir):""}<div style="font-size:18px;font-weight:700;margin-top:4px">${P[s]?num(P[s])+" €":"—"}</div><div class="small ${cls(CH[s]||0)}">${P[s]?((CH[s]||0)*100).toFixed(2).replace(".",",")+(isStock(s)?" % (jour)":" % (1 h)"):""}</div><div class="small" style="margin-top:4px">${ST[s]||""}</div></div>`}
 
 function render(){
   const pg=location.hash==="#trading"?"t":"d";
   pDash.classList.toggle("hidden",pg!=="d");pTrade.classList.toggle("hidden",pg!=="t");
   l1.className=pg==="d"?"on":"";l2.className=pg==="t"?"on":"";
-  const e=equity(),pl=e-START,sells=S.trades.filter(t=>t.side==="VENTE"),buys=S.trades.filter(t=>t.side==="ACHAT");
-  const wins=sells.filter(t=>t.pnl>0).length,inv=Object.values(S.pos).reduce((t,p)=>t+p.cost,0);
-  const paused=S.day.losses>=DAY_LOSSES||e<S.day.startEq*(1-DAY_DD);
+  const e=equity(),pl=e-START,exits=S.trades.filter(isExit),entries=S.trades.filter(t=>!isExit(t));
+  const wins=exits.filter(t=>t.pnl>0).length,inv=Object.values(S.pos).reduce((t,p)=>t+p.cost,0),paused=isPaused();
   liveTag.className="live"+(paused||!online?" off":"");
   liveTxt.textContent=!online?"Connexion aux prix…":paused?"En pause aujourd'hui":"En direct";
   kEq.textContent=eur(e);kPl.textContent=sign(pl);kPl.className="big "+cls(pl);
-  kPlPct.textContent=(pl>=0?"+":"")+(pl/START*100).toFixed(2)+" %";
+  kPlPct.textContent=(pl>=0?"+":"")+(pl/START*100).toFixed(2).replace(".",",")+" %";
   kCash.textContent=eur(S.cash);kInv.textContent=eur(inv)+" en positions";
-  kTr.textContent=S.trades.length;kWin.textContent=sells.length?`${Math.round(wins/sells.length*100)} % de trades gagnants`:"Aucun trade clôturé";
+  kTr.textContent=S.trades.length;kWin.textContent=exits.length?`${Math.round(wins/exits.length*100)} % de trades gagnants`:"Aucun trade clôturé";
   const dpl=e-S.day.startEq;kDay.textContent=sign(dpl);kDay.className="big "+cls(dpl);
   kDayInfo.textContent=`${S.day.losses}/${DAY_LOSSES} pertes · `+(paused?"bot en pause jusqu'à demain":"bot actif");
-  kIn.textContent=eur(buys.reduce((t,b)=>t+b.amt,0));kOut.textContent=eur(sells.reduce((t,b)=>t+b.amt,0));
-  const Rs=sells.filter(t=>t.R!==undefined).map(t=>t.R);
-  kR.textContent=Rs.length?((Rs.reduce((a,b)=>a+b,0)/Rs.length)>=0?"+":"")+(Rs.reduce((a,b)=>a+b,0)/Rs.length).toFixed(2)+"R":"—";
-  const pn=sells.map(t=>t.pnl);kBest.textContent=pn.length?sign(Math.max(...pn)):"—";kWorst.textContent=pn.length?sign(Math.min(...pn)):"—";
+  const nL=exits.filter(t=>(t.dir||1)>0).length;kLS.textContent=`${nL} / ${exits.length-nL}`;
+  const pC=exits.filter(t=>!isStock(t.s)).reduce((a,t)=>a+t.pnl,0),pS=exits.filter(t=>isStock(t.s)).reduce((a,t)=>a+t.pnl,0);
+  kCB.innerHTML=`<span class="${cls(pC)}">${sign(pC)}</span><br><span class="${cls(pS)}" style="font-size:18px">${sign(pS)}</span>`;
+  const Rs=exits.filter(t=>t.R!==undefined).map(t=>t.R),aR=Rs.length?Rs.reduce((a,b)=>a+b,0)/Rs.length:null;
+  kR.textContent=aR===null?"—":(aR>=0?"+":"")+f2(aR)+"R";
+  const pn=exits.map(t=>t.pnl);kBest.textContent=pn.length?sign(Math.max(...pn)):"—";kWorst.textContent=pn.length?sign(Math.min(...pn)):"—";
   kStart.textContent="Simulation lancée le "+new Date(S.start).toLocaleString("fr-FR");
-  markets.innerHTML=SYMS.filter(s=>P[s]).map(s=>`<div class="card"><b>${NAME(s)}</b> ${S.pos[s]?'<span class="tag buy">EN POSITION</span>':""}<div style="font-size:18px;font-weight:700;margin-top:4px">${num(P[s])} €</div><div class="small ${cls(CH[s]||0)}">${((CH[s]||0)*100).toFixed(2)} % (1 h)</div><div class="small" style="margin-top:4px">${ST[s]||""}</div></div>`).join("")||'<div class="small">Chargement des prix…</div>';
+  stStat.textContent=stStatus||(getKey()?"Clé enregistrée ✓":"Ajoute ta clé Twelve Data pour activer la bourse.");
+  tdKey.placeholder=getKey()?"Clé enregistrée ✓ (colle une nouvelle clé pour la changer)":"Colle ta clé API Twelve Data";
+  mkS.innerHTML=STOCKS.map(x=>card(x.s)).join("");
+  mkC.innerHTML=CRYPTO.filter(s=>P[s]).map(card).join("")||'<div class="small">Chargement des prix…</div>';
   const ps=Object.entries(S.pos);
-  pos.innerHTML=ps.length?ps.map(([s,p])=>{const cur=P[s]||p.entry,v=p.qty*cur-p.cost;return `<tr><td><b>${NAME(s)}</b></td><td>${num(p.qty)}</td><td>${num(p.entry)} €</td><td>${num(cur)} €</td><td class="down">${num(p.stop)} €${p.be?" (point mort)":""}</td><td class="up">${num(p.tp)} €</td><td>${eur(p.cost)}</td><td class="${cls(v)}">${sign(v)} (${(v/p.cost*100).toFixed(2)} %)</td><td>${dt(p.t)}</td></tr>`}).join(""):'<tr><td colspan="9" class="empty">Aucune position ouverte, le bot attend un signal complet.</td></tr>';
-  hist.innerHTML=S.trades.length?S.trades.map(t=>`<tr><td>${dt(t.t)}</td><td><b>${NAME(t.s)}</b></td><td><span class="tag ${t.side==="ACHAT"?"buy":"sell"}">${t.side==="ACHAT"?"ENTRÉE":"SORTIE"}</span></td><td>${num(t.price)} €</td><td>${num(t.qty)}</td><td>${eur(t.amt)}</td><td class="${t.pnl==null?"":cls(t.pnl)}">${t.pnl==null?"—":sign(t.pnl)+(t.R!==undefined?` (${t.R>=0?"+":""}${t.R.toFixed(1)}R)`:"")}</td><td class="small">${t.why}</td></tr>`).join(""):'<tr><td colspan="8" class="empty">Pas encore de trade.</td></tr>';
+  pos.innerHTML=ps.length?ps.map(([s,p])=>{const cur=P[s]||p.entry,v=posVal(s,p)-p.cost;return `<tr><td><b>${NAME(s)}</b></td><td>${dirTag(p.dir)}</td><td>${num(p.qty)}</td><td>${num(p.entry)} €</td><td>${num(cur)} €</td><td class="down">${num(p.stop)} €${p.be?" (point mort)":""}</td><td class="up">${num(p.tp)} €</td><td>${eur(p.cost)}</td><td class="${cls(v)}">${sign(v)} (${(v/p.cost*100).toFixed(2).replace(".",",")} %)</td><td>${dt(p.t)}</td></tr>`}).join(""):'<tr><td colspan="10" class="empty">Aucune position ouverte, le bot attend un signal complet.</td></tr>';
+  hist.innerHTML=S.trades.length?S.trades.map(t=>{const ex=isExit(t),lab=ex?'<span class="tag neu">SORTIE</span>':((t.dir||1)>0?'<span class="tag buy">ENTRÉE LONG</span>':'<span class="tag sell">ENTRÉE SHORT</span>');
+    return `<tr><td>${dt(t.t)}</td><td><b>${NAME(t.s)}</b></td><td>${lab}</td><td>${num(t.price)} €</td><td>${num(t.qty)}</td><td>${eur(t.amt)}</td><td class="${t.pnl==null?"":cls(t.pnl)}">${t.pnl==null?"—":sign(t.pnl)+(t.R!==undefined?` (${t.R>=0?"+":""}${f1(t.R)}R)`:"")}</td><td class="small">${t.why}</td></tr>`}).join(""):'<tr><td colspan="8" class="empty">Pas encore de trade.</td></tr>';
   chart();
 }
 window.addEventListener("hashchange",render);window.addEventListener("resize",chart);
-render();tick();setInterval(tick,20000);
+render();tick().then(stockTick);setInterval(tick,20000);setInterval(stockTick,15000);
 </script>
 </body>
 </html>
