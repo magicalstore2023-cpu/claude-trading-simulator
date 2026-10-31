@@ -11,7 +11,7 @@ const START = 10000, FEE = 0.001, RISK = 0.01, MAXW = 0.16, MAXPOS = 6;
 const DAY_LOSSES = 6, DAY_DD = 0.03, COOLDOWN = 3 * 60e3;
 const MINVOL = 15e6;          // volume minimum sur 24 h (en dollars) pour qu'une crypto soit tradée
 const UNIVERSE = 40;          // nombre de cryptos analysées à chaque passage (les plus échangées + les plus gros mouvements)
-const VOL_X = 1.5, BOOK_X = 1.15, RR = 1.5;
+const RR = 1.5, MAXDIR = 3;   // max 3 positions dans le même sens (le marché crypto bouge souvent en bloc)
 const CORE = ["BTCUSDT","ETHUSDT","SOLUSDT","BNBUSDT","XRPUSDT","DOGEUSDT"];
 // Exclus : stablecoins, monnaies classiques, jetons à effet de levier
 const EXCLUDE = /^(USDC|FDUSD|TUSD|BUSD|USDP|DAI|USDE|USD1|EUR|EURI|AEUR|GBP|TRY|BRL|PAXG|WBTC|WBETH|BFUSD|XUSD|RLUSD)USDT$|(UP|DOWN|BULL|BEAR)USDT$/;
@@ -73,6 +73,49 @@ if (!S || typeof S.cash !== "number") S = fresh();
 for (const k of ["cool", "P", "CH", "ST"]) if (!S[k]) S[k] = {};
 delete S.td; delete S.orb; delete S.stStatus;
 let FX = S.fx || null;
+if (!S.learn) S.learn = { volX: 1.5, bookX: 1.15, dmin: 0.006, earlyExit: true, banned: {}, lessons: [], lastN: 0 };
+const L = S.learn;
+
+// ===== Apprentissage : le bot relit ses derniers trades et ajuste ses règles =====
+function lesson(text) { L.lessons.unshift({ t: Date.now(), text }); if (L.lessons.length > 30) L.lessons.length = 30; console.log("LEÇON", text) }
+function learn() {
+  const ex = S.trades.filter(t => t.side === "SORTIE" && t.R !== undefined);
+  for (const s of Object.keys(L.banned)) if (L.banned[s] < Date.now()) delete L.banned[s];
+  if (ex.length < 8 || ex.length === L.lastN) return;          // on apprend seulement quand il y a du nouveau
+  L.lastN = ex.length;
+  const last = ex.slice(0, 20), avg = a => a.reduce((x, y) => x + y, 0) / (a.length || 1);
+  const avgR = avg(last.map(t => t.R));
+  // a) Sélectivité : si les derniers trades perdent, on exige des signaux plus forts ; s'ils gagnent, on s'ouvre un peu
+  if (avgR < -0.15) {
+    const v = Math.min(3, +(L.volX + 0.1).toFixed(2)), b = Math.min(2, +(L.bookX + 0.05).toFixed(2));
+    if (v !== L.volX || b !== L.bookX) { L.volX = v; L.bookX = b; lesson(`Résultats récents négatifs (${f2(avgR)}R en moyenne) : je deviens plus sélectif (volume ≥ ${f1(v)}×, carnet ≥ ${f2(b)}×).`) }
+  } else if (avgR > 0.25) {
+    const v = Math.max(1.3, +(L.volX - 0.1).toFixed(2)), b = Math.max(1.1, +(L.bookX - 0.05).toFixed(2));
+    if (v !== L.volX || b !== L.bookX) { L.volX = v; L.bookX = b; lesson(`Résultats récents positifs (+${f2(avgR)}R) : j'accepte un peu plus de signaux (volume ≥ ${f1(v)}×, carnet ≥ ${f2(b)}×).`) }
+  }
+  // b) Largeur du stop : trop de stops touchés = stop trop serré pour le bruit du marché
+  const stops = last.filter(t => t.why.startsWith("Stop-loss")).length / last.length;
+  const tps = last.filter(t => t.why.startsWith("Objectif")).length / last.length;
+  if (stops > 0.45 && L.dmin < 0.012) { L.dmin = +(L.dmin + 0.001).toFixed(4); lesson(`${Math.round(stops * 100)} % des derniers trades ont touché le stop : j'élargis le stop minimum à ${pct(L.dmin)}.`) }
+  else if (tps > 0.4 && L.dmin > 0.004) { L.dmin = +(L.dmin - 0.0005).toFixed(4); lesson(`${Math.round(tps * 100)} % des derniers trades ont atteint l'objectif : je resserre un peu le stop minimum (${pct(L.dmin)}).`) }
+  // c) Sortie anticipée sur retournement : on la garde seulement si elle limite vraiment les pertes
+  const early = ex.slice(0, 40).filter(t => t.why.startsWith("Tendance retournée"));
+  if (early.length >= 5) {
+    const r = avg(early.map(t => t.R));
+    if (L.earlyExit && r < -0.8) { L.earlyExit = false; lesson(`Les sorties sur retournement coûtent presque une perte complète (${f2(r)}R) : je les désactive et je laisse le stop ou l'objectif décider.`) }
+  }
+  // d) Cryptos qui ne réussissent pas : mises de côté 24 h
+  const by = {};
+  for (const t of ex.slice(0, 60)) (by[t.s] = by[t.s] || []).push(t.R);
+  for (const [s, rs] of Object.entries(by)) {
+    const r3 = rs.slice(0, 3);
+    if (r3.length >= 2 && r3.reduce((a, b) => a + b, 0) <= -2 && !L.banned[s]) { L.banned[s] = Date.now() + 24 * 3600e3; lesson(`${s.replace("USDT", "")} a perdu ${r3.length} fois d'affilée : je l'écarte pendant 24 h.`) }
+  }
+  // e) Sens du marché : si un sens perd nettement plus que l'autre, on le rend plus exigeant
+  const lg = last.filter(t => (t.dir || 1) > 0).map(t => t.R), sh = last.filter(t => t.dir < 0).map(t => t.R);
+  const weak = lg.length >= 5 && sh.length >= 5 ? (avg(lg) < avg(sh) - 0.5 ? 1 : avg(sh) < avg(lg) - 0.5 ? -1 : 0) : 0;
+  if (weak !== (L.weakDir || 0)) { L.weakDir = weak; if (weak) lesson(`Les ${weak > 0 ? "longs" : "shorts"} perdent nettement plus que les ${weak > 0 ? "shorts" : "longs"} : j'exige un volume plus fort pour les ${weak > 0 ? "longs" : "shorts"}.`) }
+}
 let HTF = {}, VOL24 = {};
 
 const posVal = (s, p) => { const cur = S.P[s] || p.entry; return (p.dir || 1) > 0 ? p.qty * cur : p.cost + p.qty * (p.entry - cur) };
@@ -121,8 +164,8 @@ function manage(s, bars, conv, maxHold) {
   breakeven();
   if (Date.now() - p.t > maxHold) return closePos(s, cur, `Durée max ${maxHold / 60e3} min`);
   const c = bars.map(b => b.c), f = sma(c, 5), sl = sma(c, 20);
-  if (p.dir > 0 && f < sl && cur < p.entry) return closePos(s, cur, "Tendance retournée, sortie avant le stop");
-  if (p.dir < 0 && f > sl && cur > p.entry) return closePos(s, cur, "Tendance retournée, sortie avant le stop");
+  if (L.earlyExit && p.dir > 0 && f < sl && cur < p.entry) return closePos(s, cur, "Tendance retournée, sortie avant le stop");
+  if (L.earlyExit && p.dir < 0 && f > sl && cur > p.entry) return closePos(s, cur, "Tendance retournée, sortie avant le stop");
   S.ST[s] = p.dir > 0 ? "En position LONG" : "En position SHORT";
 }
 
@@ -145,9 +188,12 @@ async function evaluate(s, bars, conv, paused) {
   if (paused) return fail("Pause du jour (limite de pertes)");
   if (Object.keys(S.pos).length >= MAXPOS) return fail(`${MAXPOS} positions déjà ouvertes`);
   if (S.cool[s] && Date.now() - S.cool[s] < COOLDOWN) return fail("Pause de 3 min après sortie");
+  if (L.banned[s]) return fail("Écartée 24 h (pertes répétées)");
   const c = bars.map(b => b.c), vol = bars.map(b => b.v), price = c.at(-1), f = sma(c, 5), sl = sma(c, 20);
   let dir = 0; if (f > sl && crossed(c, 1)) dir = 1; else if (f < sl && crossed(c, -1)) dir = -1;
   if (!dir) return fail("Pas de croisement");
+  if (Object.values(S.pos).filter(p => (p.dir || 1) === dir).length >= MAXDIR) return fail(`Déjà ${MAXDIR} positions ${dir > 0 ? "LONG" : "SHORT"}`);
+  const VOL_X = L.volX + (L.weakDir === dir ? 0.5 : 0), BOOK_X = L.bookX;
   const vNow = sma(vol, 3), vAvg = vol.slice(-23, -3).reduce((a, b) => a + b, 0) / 20, vx = vAvg ? vNow / vAvg : 0;
   const mom = dir > 0 ? price > c.at(-4) : price < c.at(-4);
   if (vx < VOL_X || !mom) return fail(`Volume normal (${f1(vx)}×)`);
@@ -158,7 +204,7 @@ async function evaluate(s, bars, conv, paused) {
   const ratio = await bookRatio(s), bx = dir > 0 ? ratio : (ratio ? 1 / ratio : 0);
   if (bx < BOOK_X) return fail(`Carnet pas assez ${dir > 0 ? "acheteur" : "vendeur"} (${f2(bx)}×)`);
   if (S.pos[s] || Object.keys(S.pos).length >= MAXPOS) return;
-  const dist = Math.min(0.015, Math.max(0.003, 1.5 * atrB(bars) / price));
+  const dist = Math.min(0.02, Math.max(L.dmin, 1.5 * atrB(bars) / price));
   openPos(s, dir, price / conv, dist,
     `${dir > 0 ? "Long" : "Short"} · volume ${f1(vx)}×, carnet ${f2(bx)}× ${dir > 0 ? "acheteur" : "vendeur"}, RSI ${r.toFixed(0)}, tendance de fond ${dir > 0 ? "haussière" : "baissière"}`,
     bars.at(-1).t);
@@ -199,6 +245,7 @@ async function tick() {
 
 async function main() {
   const t0 = Date.now();
+  learn();
   await scanMarket();
   console.log(`Marché : ${S.scanned.total} paires, ${S.scanned.liquid} liquides, ${WATCH.length} analysées · source ${PROVIDER}`);
   while (true) {

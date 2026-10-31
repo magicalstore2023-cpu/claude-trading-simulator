@@ -80,23 +80,23 @@ button:hover{color:var(--txt)}
     <div class="card"><h4>Entrée LONG (pari à la hausse)</h4><ul>
       <li><b>Tendance de fond</b> haussière (moyenne 50 en bougies de 15 min)</li>
       <li><b>Croisement</b> : la moyenne 5 passe au-dessus de la moyenne 20</li>
-      <li><b>Volume « baleine »</b> : au moins 1,5× la normale, prix en hausse</li>
+      <li><b>Volume « baleine »</b> : au-dessus de la normale (seuil ajusté par l'apprentissage), prix en hausse</li>
       <li><b>RSI</b> entre 45 et 70</li>
-      <li><b>Carnet d'ordres</b> : au moins 1,15× plus d'acheteurs</li>
+      <li><b>Carnet d'ordres</b> : plus d'acheteurs que de vendeurs</li>
     </ul></div>
     <div class="card"><h4>Entrée SHORT (pari à la baisse)</h4><ul>
       <li><b>Tendance de fond</b> baissière</li>
       <li><b>Croisement</b> : la moyenne 5 passe sous la moyenne 20</li>
-      <li><b>Volume « baleine »</b> : au moins 1,5× la normale, prix en baisse</li>
+      <li><b>Volume « baleine »</b> : au-dessus de la normale (seuil ajusté par l'apprentissage), prix en baisse</li>
       <li><b>RSI</b> entre 30 et 55</li>
-      <li><b>Carnet d'ordres</b> : au moins 1,15× plus de vendeurs</li>
+      <li><b>Carnet d'ordres</b> : plus de vendeurs que d'acheteurs</li>
     </ul></div>
     <div class="card"><h4>Gestion du risque</h4><ul>
       <li><b>Risque max 1 %</b> du portefeuille par trade</li>
       <li><b>Stop-loss</b> obligatoire, calé sur la volatilité</li>
       <li><b>Objectif</b> = 1,5× le risque (petits gains rapides)</li>
       <li><b>Point mort</b> : dès +1R, le stop remonte au prix d'entrée</li>
-      <li><b>Max 16 %</b> du capital par position, <b>6 positions</b> max</li>
+      <li><b>Max 16 %</b> du capital par position, <b>6 positions</b> max dont <b>3 dans le même sens</b></li>
       <li><b>Aucune pause</b> : le bot trade 24h/24 dès qu'il trouve un signal</li>
     </ul></div>
     <div class="card"><h4>Choix des cryptos</h4><ul>
@@ -111,6 +111,11 @@ button:hover{color:var(--txt)}
       <li><b>Retournement</b> de tendance alors que le trade perd</li>
       <li><b>Frais</b> simulés : 0,1 % à l'entrée et à la sortie</li>
     </ul></div>
+  </div>
+  <h2>Ce que le bot a appris</h2>
+  <div class="card" style="margin-bottom:18px">
+    <div class="small" id="learnNow" style="margin-bottom:10px"></div>
+    <ul id="learnList" style="list-style:none"></ul>
   </div>
   <div class="row"><span class="small" id="kStart"></span><span class="small">Le bot tourne sur serveur 24h/24, même quand cette page est fermée.</span></div>
 </section>
@@ -214,6 +219,11 @@ function render(){
   kR.textContent=aR===null?"—":(aR>=0?"+":"")+f2(aR)+"R";
   const pn=exits.map(t=>t.pnl);kBest.textContent=pn.length?sign(Math.max(...pn)):"—";kWorst.textContent=pn.length?sign(Math.min(...pn)):"—";
   kStart.textContent="Simulation lancée le "+new Date(S.start).toLocaleString("fr-FR");
+  const Lr=S.learn;
+  if(Lr){const ban=Object.keys(Lr.banned||{}).map(NAME);
+    learnNow.innerHTML=`Réglages actuels : volume ≥ <b>${f1(Lr.volX)}×</b> · carnet ≥ <b>${f2(Lr.bookX)}×</b> · stop minimum <b>${(Lr.dmin*100).toFixed(1).replace(".",",")} %</b> · sortie anticipée <b>${Lr.earlyExit?"active":"désactivée"}</b>`+(ban.length?` · écartées 24 h : <b>${ban.join(", ")}</b>`:"");
+    learnList.innerHTML=(Lr.lessons||[]).map(l=>`<li style="font-size:13px;color:var(--mut);padding:6px 0;border-bottom:1px solid var(--line)"><span style="color:var(--txt)">${dt(l.t)}</span> · ${l.text}</li>`).join("")||'<li class="small">Pas encore de leçon : le bot apprend à partir de 8 trades clôturés.</li>'}
+  else{learnNow.textContent="Le module d'apprentissage démarre au prochain passage.";learnList.innerHTML=""}
   mkR.innerHTML=(S.radar||[]).map(radar).join("")||'<div class="small">Disponible au prochain passage du bot…</div>';
   const order=Object.keys(S.P).sort((a,b)=>(S.pos[b]?1:0)-(S.pos[a]?1:0)||Math.abs(CH[b]||0)-Math.abs(CH[a]||0));
   mkC.innerHTML=order.map(card).join("");
