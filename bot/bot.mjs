@@ -77,7 +77,7 @@ let HTF = {}, VOL24 = {};
 
 const posVal = (s, p) => { const cur = S.P[s] || p.entry; return (p.dir || 1) > 0 ? p.qty * cur : p.cost + p.qty * (p.entry - cur) };
 const equity = () => S.cash + Object.entries(S.pos).reduce((t, [s, p]) => t + posVal(s, p), 0);
-const isPaused = () => S.day.losses >= DAY_LOSSES || equity() < S.day.startEq * (1 - DAY_DD);
+const isPaused = () => false;   // plus de pause journalière : le bot trade 24h/24 tant qu'il trouve des signaux
 
 function closePos(s, ex, why) {
   const p = S.pos[s], dir = p.dir || 1; let pnl;

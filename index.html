@@ -97,7 +97,7 @@ button:hover{color:var(--txt)}
       <li><b>Objectif</b> = 1,5× le risque (petits gains rapides)</li>
       <li><b>Point mort</b> : dès +1R, le stop remonte au prix d'entrée</li>
       <li><b>Max 16 %</b> du capital par position, <b>6 positions</b> max</li>
-      <li><b>Pause du jour</b> après 6 pertes ou -3 % sur la journée</li>
+      <li><b>Aucune pause</b> : le bot trade 24h/24 dès qu'il trouve un signal</li>
     </ul></div>
     <div class="card"><h4>Choix des cryptos</h4><ul>
       <li><b>Tout le marché Binance</b> est scanné (paires en USDT)</li>
@@ -196,7 +196,7 @@ function render(){
     mkR.innerHTML="";mkC.innerHTML='<div class="small">En attente du premier passage du bot…</div>';return}
   const e=equity(),pl=e-START,exits=S.trades.filter(isExit);
   const wins=exits.filter(t=>t.pnl>0).length,inv=Object.values(S.pos).reduce((t,p)=>t+p.cost,0);
-  const paused=S.day.losses>=DAY_LOSSES||e<S.day.startEq*(1-DAY_DD);
+  const paused=false;
   const stale=Date.now()-S.updated>20*60e3;
   liveTag.className="live"+(paused||stale?" off":"");
   liveTxt.textContent=stale?"Bot en retard":paused?"En pause aujourd'hui":"En direct";
@@ -206,7 +206,7 @@ function render(){
   kCash.textContent=eur(S.cash);kInv.textContent=eur(inv)+" en positions";
   kTr.textContent=S.trades.length;kWin.textContent=exits.length?`${Math.round(wins/exits.length*100)} % de trades gagnants`:"Aucun trade clôturé";
   const dpl=e-S.day.startEq;kDay.textContent=sign(dpl);kDay.className="big "+cls(dpl);
-  kDayInfo.textContent=`${S.day.losses}/${DAY_LOSSES} pertes · `+(paused?"bot en pause jusqu'à demain":"bot actif");
+  kDayInfo.textContent=`${S.day.losses} trade(s) perdant(s) aujourd'hui · bot actif 24h/24`;
   const nL=exits.filter(t=>(t.dir||1)>0).length;kLS.textContent=`${nL} / ${exits.length-nL}`;
   const sc=S.scanned||{};kCB.textContent=sc.watched?`${sc.watched}`:"—";
   kScan.textContent=sc.liquid?`analysées sur ${sc.liquid} cryptos liquides (${sc.total} paires)`:"cryptos analysées à chaque passage";
