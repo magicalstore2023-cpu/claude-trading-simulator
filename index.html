@@ -75,40 +75,26 @@ button:hover{color:var(--txt)}
     <div class="card"><h4>Pire trade</h4><div class="big down" id="kWorst">—</div></div>
   </div>
 
-  <h2>Règles appliquées par le bot</h2>
+  <h2>Stratégie : suivi de tendance (bougies de 4 h)</h2>
+  <div class="card" style="margin-bottom:14px"><div class="small" id="stratInfo"></div></div>
   <div class="rules">
-    <div class="card"><h4>Entrée LONG (pari à la hausse)</h4><ul>
-      <li><b>Tendance de fond</b> haussière (moyenne 50 en bougies de 15 min)</li>
-      <li><b>Croisement</b> : la moyenne 5 passe au-dessus de la moyenne 20</li>
-      <li><b>Volume « baleine »</b> : au-dessus de la normale (seuil ajusté par l'apprentissage), prix en hausse</li>
-      <li><b>RSI</b> entre 45 et 70</li>
-      <li><b>Carnet d'ordres</b> : plus d'acheteurs que de vendeurs</li>
+    <div class="card"><h4>Filtre de marché</h4><ul>
+      <li>On n'achète que si le <b>Bitcoin</b> est au-dessus de sa moyenne de ~20 jours</li>
+      <li>Marché baissier : <b>tout est vendu</b> et le bot reste en cash</li>
     </ul></div>
-    <div class="card"><h4>Entrée SHORT (pari à la baisse)</h4><ul>
-      <li><b>Tendance de fond</b> baissière</li>
-      <li><b>Croisement</b> : la moyenne 5 passe sous la moyenne 20</li>
-      <li><b>Volume « baleine »</b> : au-dessus de la normale (seuil ajusté par l'apprentissage), prix en baisse</li>
-      <li><b>RSI</b> entre 30 et 55</li>
-      <li><b>Carnet d'ordres</b> : plus de vendeurs que d'acheteurs</li>
+    <div class="card"><h4>Entrée (achat seulement)</h4><ul>
+      <li>Les <b>30 cryptos les plus échangées</b> (plus de 30 M$ par jour)</li>
+      <li>La crypto est au-dessus de sa <b>tendance de fond</b> (moyenne de 200 bougies)</li>
+      <li>Une bougie de 4 h clôture au-dessus du <b>plus haut des 20 dernières</b></li>
+    </ul></div>
+    <div class="card"><h4>Sortie</h4><ul>
+      <li><b>Stop initial</b> à 2 fois la volatilité (ATR) sous l'entrée</li>
+      <li><b>Stop suiveur</b> : il remonte sous le plus bas des 10 dernières bougies</li>
+      <li><b>Pas d'objectif fixe</b> : on laisse courir les tendances</li>
     </ul></div>
     <div class="card"><h4>Gestion du risque</h4><ul>
       <li><b>Risque max 1 %</b> du portefeuille par trade</li>
-      <li><b>Stop-loss</b> obligatoire, calé sur la volatilité</li>
-      <li><b>Objectif</b> = 1,5× le risque (petits gains rapides)</li>
-      <li><b>Point mort</b> : dès +1R, le stop remonte au prix d'entrée</li>
-      <li><b>Max 16 %</b> du capital par position, <b>6 positions</b> max dont <b>3 dans le même sens</b></li>
-      <li><b>Aucune pause</b> : le bot trade 24h/24 dès qu'il trouve un signal</li>
-    </ul></div>
-    <div class="card"><h4>Choix des cryptos</h4><ul>
-      <li><b>Tout le marché Binance</b> est scanné (paires en USDT)</li>
-      <li><b>Liquidité</b> : au moins 15 M$ échangés sur 24 h</li>
-      <li><b>40 cryptos</b> suivies : les plus gros mouvements du jour + les plus échangées</li>
-      <li>Stablecoins et jetons à effet de levier exclus</li>
-    </ul></div>
-    <div class="card"><h4>Sorties</h4><ul>
-      <li><b>Stop-loss</b> ou <b>objectif</b> atteint</li>
-      <li><b>Durée max</b> : 30 min par trade</li>
-      <li><b>Retournement</b> de tendance alors que le trade perd</li>
+      <li><b>Max 16 %</b> du capital par position, <b>6 positions</b> max</li>
       <li><b>Frais</b> simulés : 0,1 % à l'entrée et à la sortie</li>
     </ul></div>
   </div>
@@ -134,7 +120,7 @@ button:hover{color:var(--txt)}
   <h3>Les plus gros mouvements sur 24 h parmi les cryptos liquides</h3>
   <div class="mk" id="mkR"></div>
   <h2>Cryptos analysées par le bot</h2>
-  <h3>24h/24 · mises à jour à chaque passage</h3>
+  <h3>Les 30 cryptos les plus échangées · variation sur 24 h</h3>
   <div class="mk" id="mkC"></div>
 
   <div class="card" style="margin-bottom:18px"><h2>Positions ouvertes</h2><div class="tbl"><table>
@@ -190,7 +176,7 @@ function chart(){
 const cls=v=>v>=0?"up":"down";
 const sign=v=>(v>=0?"+":"")+eur(v);
 const dirTag=d=>(d||1)>0?'<span class="tag buy">LONG</span>':'<span class="tag sell">SHORT</span>';
-function card(s){const p=S&&S.pos[s];return `<div class="card"><b>${NAME(s)}</b> ${p?dirTag(p.dir):""}<div style="font-size:18px;font-weight:700;margin-top:4px">${P[s]?num(P[s])+" €":"—"}</div><div class="small ${cls(CH[s]||0)}">${P[s]?((CH[s]||0)*100).toFixed(2).replace(".",",")+" % (1 h)":""}</div><div class="small" style="margin-top:4px">${ST[s]||""}</div></div>`}
+function card(s){const p=S&&S.pos[s];return `<div class="card"><b>${NAME(s)}</b> ${p?dirTag(p.dir):""}<div style="font-size:18px;font-weight:700;margin-top:4px">${P[s]?num(P[s])+" €":"—"}</div><div class="small ${cls(CH[s]||0)}">${P[s]?((CH[s]||0)*100).toFixed(2).replace(".",",")+" % (24 h)":""}</div><div class="small" style="margin-top:4px">${ST[s]||""}</div></div>`}
 function radar(x){return `<div class="card"><b>${NAME(x.s)}</b> ${S.pos[x.s]?dirTag(S.pos[x.s].dir):""}<div style="font-size:20px;font-weight:800;margin-top:4px" class="${cls(x.ch)}">${x.ch>=0?"+":""}${(x.ch*100).toFixed(1).replace(".",",")} %</div><div class="small">sur 24 h · volume ${mUSD(x.vol)}</div><div class="small" style="margin-top:4px">${ST[x.s]||""}</div></div>`}
 
 function render(){
@@ -219,10 +205,12 @@ function render(){
   kR.textContent=aR===null?"—":(aR>=0?"+":"")+f2(aR)+"R";
   const pn=exits.map(t=>t.pnl);kBest.textContent=pn.length?sign(Math.max(...pn)):"—";kWorst.textContent=pn.length?sign(Math.min(...pn)):"—";
   kStart.textContent="Simulation lancée le "+new Date(S.start).toLocaleString("fr-FR");
-  const Lr=S.learn;
-  if(Lr){const ban=Object.keys(Lr.banned||{}).map(NAME);
-    learnNow.innerHTML=`Réglages actuels : volume ≥ <b>${f1(Lr.volX)}×</b> · carnet ≥ <b>${f2(Lr.bookX)}×</b> · stop minimum <b>${(Lr.dmin*100).toFixed(1).replace(".",",")} %</b> · sortie anticipée <b>${Lr.earlyExit?"active":"désactivée"}</b>`+(ban.length?` · écartées 24 h : <b>${ban.join(", ")}</b>`:"");
-    learnList.innerHTML=(Lr.lessons||[]).map(l=>`<li style="font-size:13px;color:var(--mut);padding:6px 0;border-bottom:1px solid var(--line)"><span style="color:var(--txt)">${dt(l.t)}</span> · ${l.text}</li>`).join("")||'<li class="small">Pas encore de leçon : le bot apprend à partir de 8 trades clôturés.</li>'}
+  const Lr=S.learn,St=S.strategy;
+  if(St){const since=St.eqStart?e-St.eqStart:0,n=exits.filter(t=>t.strat===St.name).length;
+    stratInfo.innerHTML=`Active depuis le <b>${new Date(St.since).toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}</b> · résultat depuis : <b class="${cls(since)}">${sign(since)}</b> · ${n} trade(s) clôturé(s) · marché : <b class="${S.regime?"up":"down"}">${S.regime?"haussier, achats autorisés":"baissier, le bot reste en cash"}</b>`+(S.btc?` (Bitcoin ${Math.round(S.btc.price).toLocaleString("fr-FR")} $ / moyenne ${Math.round(S.btc.ema).toLocaleString("fr-FR")} $)`:"")}
+  if(Lr){
+    learnNow.innerHTML=Lr.nIn?`Réglage actuel : cassure du plus haut des <b>${Lr.nIn}</b> dernières bougies de 4 h`:"";
+    learnList.innerHTML=(Lr.lessons||[]).map(l=>`<li style="font-size:13px;color:var(--mut);padding:6px 0;border-bottom:1px solid var(--line)"><span style="color:var(--txt)">${dt(l.t)}</span> · ${l.text}</li>`).join("")||'<li class="small">Pas encore de leçon.</li>'}
   else{learnNow.textContent="Le module d'apprentissage démarre au prochain passage.";learnList.innerHTML=""}
   mkR.innerHTML=(S.radar||[]).map(radar).join("")||'<div class="small">Disponible au prochain passage du bot…</div>';
   const order=Object.keys(S.P).sort((a,b)=>(S.pos[b]?1:0)-(S.pos[a]?1:0)||Math.abs(CH[b]||0)-Math.abs(CH[a]||0));
