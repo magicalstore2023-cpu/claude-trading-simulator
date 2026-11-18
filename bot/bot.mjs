@@ -15,7 +15,7 @@ const N_OUT = 10;           // sortie : clôture sous le plus bas des 10 derniè
 const STOP_ATR = 2;         // stop initial : 2 ATR sous l'entrée
 const REGIME_EMA = 120;     // filtre : Bitcoin au-dessus de sa moyenne de 120 bougies de 4 h (~20 jours)
 const TREND_EMA = 200;      // la crypto doit être au-dessus de sa moyenne de 200 bougies de 4 h
-const EXCLUDE = /^(USDC|FDUSD|TUSD|BUSD|USDP|DAI|USDE|USD1|EUR|EURI|AEUR|GBP|TRY|BRL|PAXG|WBTC|WBETH|BFUSD|XUSD|RLUSD)USDT$|(UP|DOWN|BULL|BEAR)USDT$/;
+const EXCLUDE = /^(USDC|FDUSD|TUSD|BUSD|USDP|DAI|USDE|USD1|EUR|EURI|AEUR|GBP|TRY|BRL|PAXG|XAUT|WBTC|WBETH|BFUSD|XUSD|RLUSD)USDT$|(UP|DOWN|BULL|BEAR)USDT$/;
 const STOCK_TOKENS = /^(INTC|SOXL|TSLA|NVDA|AAPL|MSFT|AMZN|META|GOOGL|GOOG|NFLX|AMD|COIN|MSTR|HOOD|CRCL|PLTR|SPY|QQQ|TQQQ|SQQQ|IWM|DIA|GLD|SLV|ORCL|AVGO|BABA|UBER|SKHY)[A-Z]?USDT$/;
 const H4 = 4 * 3600e3;
 
@@ -60,6 +60,7 @@ if (!S.strategy || S.strategy.name !== STRAT) {
 }
 const L = S.learn;
 if (!L.nIn) L.nIn = 20;
+if (!L.v2) { L.v2 = true; L.lessons.unshift({ t: Date.now(), text: "Erreur du 4 novembre : j'ai acheté sur un rebond du Bitcoin qui n'a duré que quelques heures (3 trades, -173 €). Test sur 400 jours : en exigeant 24 h au-dessus de la moyenne et une moyenne qui remonte, les faux signaux baissent nettement (30 derniers jours : -1R au lieu de -9R). J'applique cette confirmation. J'exclus aussi l'or tokenisé (XAUT), qui n'est pas une crypto." }) }
 
 const posVal = (s, p) => { const cur = S.P[s] || p.entry; return p.qty * cur };
 const equity = () => S.cash + Object.entries(S.pos).reduce((t, [s, p]) => t + posVal(s, p), 0);
@@ -101,8 +102,10 @@ async function scan() {
 async function regime() {
   const b = await klines("BTCUSDT", "4h", 300); if (!b || b.length < REGIME_EMA + 5) return REGIME;
   const closed = b.slice(0, -1), cl = closed.map(x => x.c), e = ema(cl, REGIME_EMA);
-  const ok = cl.at(-1) > e.at(-1);
-  if (S.regime !== undefined && S.regime !== ok) lesson(ok ? "Le Bitcoin repasse au-dessus de sa moyenne de 20 jours : le marché redevient haussier, je peux de nouveau acheter les cassures." : "Le Bitcoin passe sous sa moyenne de 20 jours : marché baissier, je vends mes positions et je reste en cash jusqu'au retour de la tendance.");
+  // Confirmation : les 6 dernières bougies de 4 h (24 h) au-dessus de la moyenne, et la moyenne en hausse.
+  // Évite les faux rebonds d'une seule bougie (erreur du 4 novembre : 3 achats, 3 pertes le lendemain).
+  const ok = cl.slice(-6).every((c, i) => c > e[e.length - 6 + i]) && e.at(-1) > e.at(-7);
+  if (S.regime !== undefined && S.regime !== ok) lesson(ok ? "Le Bitcoin tient au-dessus de sa moyenne de 20 jours depuis 24 h et la moyenne remonte : marché haussier confirmé, je peux de nouveau acheter les cassures." : "Le marché n'est plus haussier confirmé (Bitcoin sous sa moyenne ou moyenne en baisse) : je vends mes positions et je reste en cash.");
   S.regime = ok; S.btc = { price: cl.at(-1), ema: e.at(-1) };
   return ok;
 }
