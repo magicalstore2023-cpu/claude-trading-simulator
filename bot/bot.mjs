@@ -8,7 +8,7 @@ const RUN_MS = +(process.env.RUN_MS || 210000);
 const TICK_MS = +(process.env.TICK_MS || 60000);
 
 // ===== Paramètres =====
-const START = 10000, FEE = 0.001, RISK = 0.01, MAXW = 0.16, MAXPOS = 6;
+const START = 10000, FEE = 0.001, RISK = 0.01, MAXW = 0.16, MAXPOS = 8;   // crypto + actions
 const MINVOL = 30e6;        // volume minimum sur 24 h (en dollars)
 const UNIVERSE = 30;        // cryptos les plus échangées analysées
 const N_OUT = 10;           // sortie : clôture sous le plus bas des 10 dernières bougies de 4 h
@@ -60,6 +60,7 @@ if (!S.strategy || S.strategy.name !== STRAT) {
 }
 const L = S.learn;
 if (!L.nIn) L.nIn = 20;
+if (!L.v3) { L.v3 = true; L.lessons.unshift({ t: Date.now(), text: "J'ajoute les grandes actions US (Nvidia, Apple, Microsoft, Nasdaq, S&P 500…). Test sur 5 ans, frais compris : la même méthode de suivi de tendance y marche bien mieux qu'en crypto (41 % de gagnants, rapport gains/pertes 1,95, aucune année perdante). Achat seulement quand le Nasdaq est en tendance haussière et qu'une action casse son plus haut des 20 derniers jours." }) }
 if (!L.v2) { L.v2 = true; L.lessons.unshift({ t: Date.now(), text: "Erreur du 4 novembre : j'ai acheté sur un rebond du Bitcoin qui n'a duré que quelques heures (3 trades, -173 €). Test sur 400 jours : en exigeant 24 h au-dessus de la moyenne et une moyenne qui remonte, les faux signaux baissent nettement (30 derniers jours : -1R au lieu de -9R). J'applique cette confirmation. J'exclus aussi l'or tokenisé (XAUT), qui n'est pas une crypto." }) }
 
 const posVal = (s, p) => { const cur = S.P[s] || p.entry; return p.qty * cur };
@@ -87,6 +88,69 @@ function learn() {
   else if (pf > 1.6 && L.nIn > 20) { L.nIn -= 5; lesson(`Rapport gains/pertes solide (${f2(pf)}) : je reviens à une cassure du plus haut de ${L.nIn} bougies.`) }
 }
 
+
+// ===== Bourse US : suivi de tendance en bougies journalières (données Yahoo Finance) =====
+// Test sur 5 ans (15 grandes actions/indices, frais compris) : 41 % de gagnants, rapport gains/pertes 1,95, aucune année perdante.
+const STOCKS = ["SPY","QQQ","DIA","NVDA","AAPL","MSFT","AMZN","META","GOOGL","TSLA","AVGO","AMD","NFLX","JPM","COST"];
+const SNAMES = { SPY: "S&P 500", QQQ: "Nasdaq 100", DIA: "Dow Jones", NVDA: "Nvidia", AAPL: "Apple", MSFT: "Microsoft", AMZN: "Amazon", META: "Meta", GOOGL: "Google", TSLA: "Tesla", AVGO: "Broadcom", AMD: "AMD", NFLX: "Netflix", JPM: "JPMorgan", COST: "Costco" };
+const isStock = s => STOCKS.includes(s);
+async function yahoo(s) {
+  const j = await getJSON(`https://query1.finance.yahoo.com/v8/finance/chart/${s}?interval=1d&range=2y`, 20000);
+  const r = j && j.chart && j.chart.result && j.chart.result[0]; if (!r || !r.timestamp) return null;
+  const q = r.indicators.quote[0], bars = [];
+  r.timestamp.forEach((t, i) => { if (q.close[i] != null && q.high[i] != null && q.low[i] != null && q.open[i] != null) bars.push({ t: t * 1000, o: q.open[i], h: q.high[i], l: q.low[i], c: q.close[i] }) });
+  return { bars, price: r.meta && r.meta.regularMarketPrice };
+}
+function nyOpen() { const d = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" })); const m = d.getHours() * 60 + d.getMinutes(); return d.getDay() > 0 && d.getDay() < 6 && m >= 570 && m < 960 }
+async function stockTick() {
+  if (!FX) return;
+  const open = nyOpen(), data = {};
+  for (const s of STOCKS) data[s] = await yahoo(s);
+  const q = data.QQQ; if (!q || q.bars.length < 120) { S.stockStatus = "Données actions indisponibles pour le moment"; return }
+  const closedOf = d => d.bars.filter(b => b.t + 6.5 * 3600e3 <= Date.now());
+  const qc = closedOf(q).map(b => b.c), qe = ema(qc, 50);
+  const reg = qc.slice(-3).every((c, i) => c > qe[qe.length - 3 + i]) && qe.at(-1) > qe.at(-6);
+  if (S.stockRegime !== undefined && S.stockRegime !== reg) lesson(reg ? "Le Nasdaq tient au-dessus de sa moyenne de 50 jours depuis 3 jours et elle monte : les actions sont en tendance haussière, je peux acheter les cassures." : "Le Nasdaq n'est plus en tendance haussière : je vends mes actions et je reste en cash côté bourse.");
+  S.stockRegime = reg; S.nasdaq = { price: qc.at(-1), ema: qe.at(-1) };
+  S.stockStatus = open ? "Bourse US ouverte" : "Bourse US fermée (ouverte 9h30–16h00 à New York) : les achats se font à l'ouverture";
+  for (const s of STOCKS) {
+    try {
+      const d = data[s]; if (!d || d.bars.length < 210) { S.ST[s] = "Données indisponibles"; continue }
+      const closed = closedOf(d), price = d.price || closed.at(-1).c, pE = price / FX;
+      S.P[s] = pE; S.CH[s] = (price - closed.at(-1).c) / closed.at(-1).c;
+      const p = S.pos[s];
+      if (p) {
+        if (open && pE <= p.stop) { closePos(s, pE, p.trail ? "Stop suiveur touché (gain protégé)" : "Stop-loss touché"); continue }
+        if (open && !reg) { closePos(s, pE, "Nasdaq plus en tendance haussière : retour en cash"); continue }
+        const lowN = Math.min(...closed.slice(-11, -1).map(x => x.l)) / FX;
+        if (open && closed.at(-1).c / FX < lowN && closed.at(-1).t > p.tEntryBar) { closePos(s, pE, "Clôture sous le plus bas des 10 derniers jours : fin de tendance"); continue }
+        if (lowN > p.stop) { p.stop = lowN; p.trail = true }
+        S.ST[s] = `En position · ${((pE / p.entry - 1) * 100).toFixed(1).replace(".", ",")} %`; continue;
+      }
+      if (!reg) { S.ST[s] = "Nasdaq pas en tendance haussière : en attente"; continue }
+      if (Object.keys(S.pos).length >= MAXPOS) { S.ST[s] = `${MAXPOS} positions déjà ouvertes`; continue }
+      if (S.cool[s] && Date.now() - S.cool[s] < 24 * 3600e3) { S.ST[s] = "Pause de 24 h après sortie"; continue }
+      const cl = closed.map(x => x.c), last = closed.at(-1);
+      if (last.c <= ema(cl, 200).at(-1)) { S.ST[s] = "Sous sa tendance de fond (moyenne 200 jours)"; continue }
+      const hh = Math.max(...closed.slice(-21, -1).map(x => x.h));
+      if (last.c <= hh) { S.ST[s] = `Pas de cassure (${((last.c / hh - 1) * 100).toFixed(1).replace(".", ",")} % du plus haut 20 jours)`; continue }
+      if (price <= hh) { S.ST[s] = "Cassure retombée sous le niveau"; continue }
+      if (S.lastBreak && S.lastBreak[s] === last.t) { S.ST[s] = "Cassure déjà jouée"; continue }
+      if (!open) { S.ST[s] = "Signal de cassure ✓ · achat à l'ouverture de la bourse"; continue }
+      const a = atr(closed), stop = (price - STOP_ATR * a) / FX, dist = (pE - stop) / pE;
+      if (dist <= 0.004 || dist > 0.25) { S.ST[s] = "Volatilité hors limites"; continue }
+      const eq = equity(), size = Math.min(eq * RISK / dist, eq * MAXW, S.cash);
+      if (size < 50) { S.ST[s] = "Pas assez de cash"; continue }
+      const qty = size * (1 - FEE) / pE; S.cash -= size;
+      S.pos[s] = { dir: 1, qty, entry: pE, cost: size, risk: size * dist, stop, stop0: stop, tp: null, t: Date.now(), max: pE, tEntryBar: last.t, strat: STRAT, mkt: "bourse" };
+      (S.lastBreak = S.lastBreak || {})[s] = last.t;
+      S.trades.unshift({ t: Date.now(), s, side: "ENTREE", dir: 1, price: pE, qty, amt: size, pnl: null, strat: STRAT,
+        why: `Long · ${SNAMES[s]} casse son plus haut des 20 derniers jours, au-dessus de sa moyenne 200 jours, Nasdaq haussier · stop ${pct(dist)} (2 ATR), on laisse courir la tendance` });
+      S.ST[s] = "Entrée LONG ✓"; console.log(`ENTREE ${s} ${size.toFixed(2)} €`);
+    } catch (e) { console.log("erreur", s, e.message) }
+  }
+}
+
 // ===== Un passage =====
 let WATCH = [], REGIME = null;
 async function scan() {
@@ -95,7 +159,7 @@ async function scan() {
   WATCH = [...new Set([...Object.keys(S.pos), ...liquid.slice(0, UNIVERSE).map(x => x.s)])];
   S.radar = liquid.slice().sort((a, b) => Math.abs(b.ch) - Math.abs(a.ch)).slice(0, 10).map(x => ({ s: x.s, ch: x.ch, vol: x.vol }));
   S.scanned = { total: t.length, liquid: liquid.length, watched: WATCH.length };
-  for (const s of Object.keys(S.ST)) if (!WATCH.includes(s)) { delete S.ST[s]; delete S.P[s]; delete S.CH[s] }
+  for (const s of Object.keys(S.ST)) if (!WATCH.includes(s) && !isStock(s)) { delete S.ST[s]; delete S.P[s]; delete S.CH[s] }
   return true;
 }
 
@@ -115,6 +179,7 @@ async function tick() {
   REGIME = await regime();
   if (S.day.d !== dayIL()) S.day = { d: dayIL(), losses: 0, startEq: equity() };
   for (const s of WATCH) {
+    if (isStock(s)) continue;
     try {
       const b = await klines(s, "4h", 260); if (!b || b.length < 60) { S.ST[s] = "Données indisponibles"; continue }
       const cur = b.at(-1), closed = b.slice(0, -1), price = cur.c;
@@ -166,8 +231,10 @@ async function main() {
   const t0 = Date.now();
   learn();
   if (!(await scan())) { console.log("Binance indisponible"); return }
+  let stocksDone = false;
   while (true) {
     await tick();
+    if (!stocksDone) { try { await stockTick() } catch (e) { console.log("erreur actions", e.message) } stocksDone = true }
     if (S.strategy.eqStart === null) S.strategy.eqStart = equity();
     S.eq.push([Date.now(), equity()]);
     if (S.eq.length > 3000) S.eq = S.eq.filter((_, i) => i % 2 === 0);

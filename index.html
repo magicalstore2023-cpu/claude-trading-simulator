@@ -92,9 +92,15 @@ button:hover{color:var(--txt)}
       <li><b>Stop suiveur</b> : il remonte sous le plus bas des 10 dernières bougies</li>
       <li><b>Pas d'objectif fixe</b> : on laisse courir les tendances</li>
     </ul></div>
+    <div class="card"><h4>Actions US (bougies journalières)</h4><ul>
+      <li><b>15 grandes valeurs</b> : Nvidia, Apple, Microsoft, Nasdaq, S&P 500…</li>
+      <li>Achat seulement si le <b>Nasdaq</b> est au-dessus de sa moyenne de 50 jours depuis 3 jours</li>
+      <li>L'action casse son <b>plus haut des 20 derniers jours</b>, au-dessus de sa moyenne 200 jours</li>
+      <li>Même stop (2 ATR), stop suiveur sous le plus bas de 10 jours, achats aux heures d'ouverture</li>
+    </ul></div>
     <div class="card"><h4>Gestion du risque</h4><ul>
       <li><b>Risque max 1 %</b> du portefeuille par trade</li>
-      <li><b>Max 16 %</b> du capital par position, <b>6 positions</b> max</li>
+      <li><b>Max 16 %</b> du capital par position, <b>8 positions</b> max (crypto + actions)</li>
       <li><b>Frais</b> simulés : 0,1 % à l'entrée et à la sortie</li>
     </ul></div>
   </div>
@@ -119,8 +125,8 @@ button:hover{color:var(--txt)}
   <h2>Radar des opportunités</h2>
   <h3>Les plus gros mouvements sur 24 h parmi les cryptos liquides</h3>
   <div class="mk" id="mkR"></div>
-  <h2>Cryptos analysées par le bot</h2>
-  <h3>Les 30 cryptos les plus échangées · variation sur 24 h</h3>
+  <h2>Marchés analysés par le bot</h2>
+  <h3>Les 30 cryptos les plus échangées (variation 24 h) et 15 grandes actions US (variation du jour)</h3>
   <div class="mk" id="mkC"></div>
 
   <div class="card" style="margin-bottom:18px"><h2>Positions ouvertes</h2><div class="tbl"><table>
@@ -136,7 +142,8 @@ button:hover{color:var(--txt)}
 <script>
 const DATA_URL="https://raw.githubusercontent.com/magicalstore2023-cpu/claude-trading-simulator/data/state.json";
 const START=10000, DAY_LOSSES=6, DAY_DD=0.03;
-const NAME=s=>s.replace(/USDT$/,"");
+const SN={SPY:"S&P 500",QQQ:"Nasdaq 100",DIA:"Dow Jones",NVDA:"Nvidia",AAPL:"Apple",MSFT:"Microsoft",AMZN:"Amazon",META:"Meta",GOOGL:"Google",TSLA:"Tesla",AVGO:"Broadcom",AMD:"AMD",NFLX:"Netflix",JPM:"JPMorgan",COST:"Costco"};
+const NAME=s=>SN[s]||s.replace(/USDT$/,"");
 const mUSD=v=>v>=1e9?(v/1e9).toFixed(1).replace(".",",")+" Md$":(v/1e6).toFixed(0)+" M$";
 let S=null,P={},CH={},ST={},err="";
 
@@ -207,7 +214,7 @@ function render(){
   kStart.textContent="Simulation lancée le "+new Date(S.start).toLocaleString("fr-FR");
   const Lr=S.learn,St=S.strategy;
   if(St){const since=St.eqStart?e-St.eqStart:0,n=exits.filter(t=>t.strat===St.name).length;
-    stratInfo.innerHTML=`Active depuis le <b>${new Date(St.since).toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}</b> · résultat depuis : <b class="${cls(since)}">${sign(since)}</b> · ${n} trade(s) clôturé(s) · marché : <b class="${S.regime?"up":"down"}">${S.regime?"haussier, achats autorisés":"baissier, le bot reste en cash"}</b>`+(S.btc?` (Bitcoin ${Math.round(S.btc.price).toLocaleString("fr-FR")} $ / moyenne ${Math.round(S.btc.ema).toLocaleString("fr-FR")} $)`:"")}
+    stratInfo.innerHTML=`Active depuis le <b>${new Date(St.since).toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}</b> · résultat depuis : <b class="${cls(since)}">${sign(since)}</b> · ${n} trade(s) clôturé(s) · marché : <b class="${S.regime?"up":"down"}">${S.regime?"haussier, achats autorisés":"baissier, le bot reste en cash"}</b>`+(S.btc?` (Bitcoin ${Math.round(S.btc.price).toLocaleString("fr-FR")} $ / moyenne ${Math.round(S.btc.ema).toLocaleString("fr-FR")} $)`:"")+(S.stockRegime!==undefined?` · actions : <b class="${S.stockRegime?"up":"down"}">${S.stockRegime?"Nasdaq haussier, achats autorisés":"Nasdaq pas haussier, en attente"}</b> · ${S.stockStatus||""}`:"")}
   if(Lr){
     learnNow.innerHTML=Lr.nIn?`Réglage actuel : cassure du plus haut des <b>${Lr.nIn}</b> dernières bougies de 4 h`:"";
     learnList.innerHTML=(Lr.lessons||[]).map(l=>`<li style="font-size:13px;color:var(--mut);padding:6px 0;border-bottom:1px solid var(--line)"><span style="color:var(--txt)">${dt(l.t)}</span> · ${l.text}</li>`).join("")||'<li class="small">Pas encore de leçon.</li>'}
